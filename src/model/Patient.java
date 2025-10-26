@@ -10,10 +10,9 @@ public class Patient {
     private String illness;
     private Date admittedDate;
     private int doctorId;
-    private String assignedDoctorName; // For display purposes
-    private int bedId; // NEW FIELD
+    private String assignedDoctorName;
+    private int bedId;
 
-    // Getters and Setters...
     public int getPatientId() { return patientId; }
     public void setPatientId(int patientId) { this.patientId = patientId; }
     public String getName() { return name; }
@@ -30,6 +29,6 @@ public class Patient {
     public void setDoctorId(int doctorId) { this.doctorId = doctorId; }
     public String getAssignedDoctorName() { return assignedDoctorName; }
     public void setAssignedDoctorName(String assignedDoctorName) { this.assignedDoctorName = assignedDoctorName; }
-    public int getBedId() { return bedId; } // NEW GETTER
-    public void setBedId(int bedId) { this.bedId = bedId; } // NEW SETTER
+    public int getBedId() { return bedId; }
+    public void setBedId(int bedId) { this.bedId = bedId; }
 }
