@@ -21,11 +21,17 @@ public class MainFrame extends JFrame {
         BedManagementPanel bedPanel = new BedManagementPanel();
         BillingPanel billingPanel = new BillingPanel();
 
-        // Add tabs with emoji icons
-        tabbedPane.addTab("PATIENTS - Patient Management", patientPanel);
-        tabbedPane.addTab("DOCTORS - Doctor Management", doctorPanel);
-        tabbedPane.addTab("BEDS - Bed Allotment", bedPanel);
-        tabbedPane.addTab("BILLING - Billing & Discharge", billingPanel);
+        // Add tabs with clear text labels
+        tabbedPane.addTab("Patient Management", patientPanel);
+        tabbedPane.addTab("Doctor Management", doctorPanel);
+        tabbedPane.addTab("Bed Management", bedPanel);
+        tabbedPane.addTab("Billing & Discharge", billingPanel);
+        
+        // Set tooltips for better UX
+        tabbedPane.setToolTipTextAt(0, "Manage patient registrations and information");
+        tabbedPane.setToolTipTextAt(1, "Manage doctor information and assignments");
+        tabbedPane.setToolTipTextAt(2, "View and manage bed allocations");
+        tabbedPane.setToolTipTextAt(3, "Generate bills and discharge patients");
         
         add(tabbedPane, BorderLayout.CENTER);
         
@@ -39,7 +45,7 @@ public class MainFrame extends JFrame {
         statusPanel.setBackground(new Color(240, 240, 240));
         statusPanel.setPreferredSize(new Dimension(getWidth(), 25));
         
-        JLabel statusLabel = new JLabel(" Ready");
+        JLabel statusLabel = new JLabel(" System Ready - Hospital Management System v1.0");
         statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         statusPanel.add(statusLabel, BorderLayout.WEST);
         

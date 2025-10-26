@@ -5,9 +5,8 @@ public class Bed {
     private String ward;
     private String status;
     private int patientId;
-    private String patientName; // For display purposes
+    private String patientName;
 
-    // Getters and Setters...
     public int getBedId() { return bedId; }
     public void setBedId(int bedId) { this.bedId = bedId; }
     public String getWard() { return ward; }

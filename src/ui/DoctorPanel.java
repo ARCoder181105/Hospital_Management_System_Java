@@ -41,7 +41,7 @@ public class DoctorPanel extends JPanel {
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
         headerPanel.setPreferredSize(new Dimension(getWidth(), 60));
         
-        JLabel titleLabel = new JLabel("👨‍⚕️ Doctor Management");
+        JLabel titleLabel = new JLabel("DOCTOR MANAGEMENT");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(Color.WHITE);
         headerPanel.add(titleLabel, BorderLayout.WEST);
@@ -118,7 +118,7 @@ public class DoctorPanel extends JPanel {
         // Submit Button
         gbc.gridx = 1; gbc.gridy = 4;
         gbc.anchor = GridBagConstraints.EAST;
-        submitButton = createStyledButton("➕ Add Doctor", new Color(34, 139, 34));
+        submitButton = createStyledButton("ADD DOCTOR", new Color(34, 139, 34));
         submitButton.addActionListener(e -> addDoctor());
         formPanel.add(submitButton, gbc);
 
@@ -154,7 +154,7 @@ public class DoctorPanel extends JPanel {
         tablePanel.add(scrollPane, BorderLayout.CENTER);
 
         // Refresh button
-        JButton refreshButton = createStyledButton("🔄 Refresh List", new Color(70, 130, 180));
+        JButton refreshButton = createStyledButton("REFRESH LIST", new Color(70, 130, 180));
         refreshButton.addActionListener(e -> loadDoctors());
         
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));

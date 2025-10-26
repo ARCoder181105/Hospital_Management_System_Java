@@ -41,7 +41,7 @@ public class BedManagementPanel extends JPanel {
         headerPanel.setBackground(new Color(165, 42, 42));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
         
-        JLabel titleLabel = new JLabel("🛏️ Bed Management");
+        JLabel titleLabel = new JLabel("BED MANAGEMENT");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(Color.WHITE);
         headerPanel.add(titleLabel, BorderLayout.WEST);
@@ -90,7 +90,7 @@ public class BedManagementPanel extends JPanel {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         bottomPanel.setBackground(Color.WHITE);
         
-        JButton refreshButton = createStyledButton("🔄 Refresh Status", new Color(165, 42, 42));
+        JButton refreshButton = createStyledButton("REFRESH STATUS", new Color(165, 42, 42));
         refreshButton.addActionListener(e -> loadBedData());
         bottomPanel.add(refreshButton);
         

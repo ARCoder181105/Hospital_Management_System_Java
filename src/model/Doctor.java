@@ -7,13 +7,11 @@ public class Doctor {
     private String phone;
     private String email;
 
-    // Override toString for easy display in JComboBox
     @Override
     public String toString() {
         return name + " (" + specialization + ")";
     }
 
-    // Getters and Setters
     public int getDoctorId() { return doctorId; }
     public void setDoctorId(int doctorId) { this.doctorId = doctorId; }
     public String getName() { return name; }

@@ -55,7 +55,7 @@ public class BillingPanel extends JPanel {
         headerPanel.setBackground(new Color(148, 0, 211));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
         
-        JLabel titleLabel = new JLabel("💰 Billing & Discharge");
+        JLabel titleLabel = new JLabel("BILLING & DISCHARGE");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(Color.WHITE);
         headerPanel.add(titleLabel, BorderLayout.WEST);
@@ -154,19 +154,19 @@ public class BillingPanel extends JPanel {
 
         // Buttons
         gbc.gridx = 0; gbc.gridy = 6;
-        previewBillButton = createStyledButton("📊 Preview Bill", new Color(255, 140, 0));
+        previewBillButton = createStyledButton("PREVIEW BILL", new Color(255, 140, 0));
         previewBillButton.addActionListener(e -> previewBill());
         formPanel.add(previewBillButton, gbc);
 
         gbc.gridx = 1;
-        generateBillButton = createStyledButton("💳 Generate Bill & Discharge", new Color(34, 139, 34));
+        generateBillButton = createStyledButton("GENERATE BILL & DISCHARGE", new Color(34, 139, 34));
         generateBillButton.addActionListener(e -> generateBill());
         formPanel.add(generateBillButton, gbc);
 
         // Refresh Button
         gbc.gridx = 1; gbc.gridy = 7;
         gbc.anchor = GridBagConstraints.EAST;
-        JButton refreshButton = createStyledButton("🔄 Refresh Lists", new Color(148, 0, 211));
+        JButton refreshButton = createStyledButton("REFRESH LISTS", new Color(148, 0, 211));
         refreshButton.addActionListener(e -> {
             loadAdmittedPatients();
             loadBillingHistory();

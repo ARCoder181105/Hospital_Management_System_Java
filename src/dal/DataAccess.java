@@ -26,7 +26,6 @@ public class DataAccess {
             
             int affectedRows = pstmt.executeUpdate();
 
-            // After adding patient, assign them to the first available bed
             if (affectedRows > 0) {
                 try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
@@ -171,7 +170,6 @@ public class DataAccess {
         
         try (Connection conn = DatabaseConnection.getConnection()) {
             int bedId = -1;
-            // Find an available bed
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(findBedSql)) {
                 if (rs.next()) {
@@ -179,7 +177,6 @@ public class DataAccess {
                 }
             }
 
-            // If a bed was found, assign it
             if (bedId != -1) {
                 try (PreparedStatement pstmt = conn.prepareStatement(assignBedSql)) {
                     pstmt.setInt(1, patientId);
@@ -196,9 +193,8 @@ public class DataAccess {
         Connection conn = null;
         try {
             conn = DatabaseConnection.getConnection();
-            conn.setAutoCommit(false); // Start transaction
+            conn.setAutoCommit(false);
 
-            // 1. Insert the bill
             String billSql = "INSERT INTO billing (patient_id, bed_charge, service_charge, doctor_fee, total, bill_date) VALUES (?, ?, ?, ?, ?, ?)";
             try (PreparedStatement pstmtBill = conn.prepareStatement(billSql)) {
                 pstmtBill.setInt(1, bill.getPatientId());
@@ -210,33 +206,31 @@ public class DataAccess {
                 pstmtBill.executeUpdate();
             }
 
-            // 2. Free the bed
             String bedSql = "UPDATE beds SET status = 'Available', patient_id = NULL WHERE patient_id = ?";
             try (PreparedStatement pstmtBed = conn.prepareStatement(bedSql)) {
                 pstmtBed.setInt(1, patientId);
                 pstmtBed.executeUpdate();
             }
 
-            // 3. Update patient's discharge date
             String patientSql = "UPDATE patients SET discharged_date = ? WHERE patient_id = ?";
             try (PreparedStatement pstmtPatient = conn.prepareStatement(patientSql)) {
                 pstmtPatient.setDate(1, new java.sql.Date(System.currentTimeMillis()));
-                pstmtPatient.setInt(2, patientId); // Corrected line
+                pstmtPatient.setInt(2, patientId);
                 pstmtPatient.executeUpdate();
             }
             
-            conn.commit(); // Commit transaction
+            conn.commit();
             return true;
 
         } catch (SQLException e) {
             if (conn != null) {
                 try {
-                    conn.rollback(); // Rollback on error
+                    conn.rollback();
                 } catch (SQLException ex) {
                     ex.printStackTrace();
                 }
             }
-            throw e; // Re-throw the exception to notify the caller
+            throw e;
         } finally {
             if (conn != null) {
                 try {
