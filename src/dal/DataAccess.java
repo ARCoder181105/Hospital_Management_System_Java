@@ -3,6 +3,7 @@ package dal;
 import model.Bed;
 import model.Bill;
 import model.Doctor;
+import model.Employee;
 import model.Patient;
 import java.sql.*;
 import java.util.ArrayList;
@@ -10,12 +11,76 @@ import java.util.List;
 
 public class DataAccess {
 
+    // ========== EMPLOYEE/LOGIN METHODS ==========
+
+    public Employee authenticateEmployee(String employeeNumber, String password) throws SQLException {
+        String sql = "SELECT * FROM employees WHERE employee_number = ? AND password = ? AND active = true";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, employeeNumber);
+            pstmt.setString(2, password);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    Employee employee = new Employee();
+                    employee.setEmployeeId(rs.getInt("employee_id"));
+                    employee.setEmployeeNumber(rs.getString("employee_number"));
+                    employee.setName(rs.getString("name"));
+                    employee.setRole(rs.getString("role"));
+                    employee.setDepartment(rs.getString("department"));
+                    return employee;
+                }
+            }
+        }
+        return null;
+    }
+
+    public boolean addEmployee(Employee employee) throws SQLException {
+        String sql = "INSERT INTO employees (employee_number, password, name, role, department) VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, employee.getEmployeeNumber());
+            pstmt.setString(2, employee.getPassword());
+            pstmt.setString(3, employee.getName());
+            pstmt.setString(4, employee.getRole());
+            pstmt.setString(5, employee.getDepartment());
+
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+        }
+    }
+
+    public List<Employee> getAllEmployees() throws SQLException {
+        List<Employee> employees = new ArrayList<>();
+        String sql = "SELECT * FROM employees WHERE active = true ORDER BY name";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Employee employee = new Employee();
+                employee.setEmployeeId(rs.getInt("employee_id"));
+                employee.setEmployeeNumber(rs.getString("employee_number"));
+                employee.setName(rs.getString("name"));
+                employee.setRole(rs.getString("role"));
+                employee.setDepartment(rs.getString("department"));
+                employees.add(employee);
+            }
+        }
+        return employees;
+    }
+
     // ========== PATIENT METHODS ==========
 
     public boolean addPatient(Patient patient) throws SQLException {
         String sql = "INSERT INTO patients (name, age, gender, illness, admitted_date, doctor_id) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setString(1, patient.getName());
             pstmt.setInt(2, patient.getAge());
@@ -23,7 +88,7 @@ public class DataAccess {
             pstmt.setString(4, patient.getIllness());
             pstmt.setDate(5, new java.sql.Date(patient.getAdmittedDate().getTime()));
             pstmt.setInt(6, patient.getDoctorId());
-            
+
             int affectedRows = pstmt.executeUpdate();
 
             if (affectedRows > 0) {
@@ -41,15 +106,15 @@ public class DataAccess {
     public List<Patient> getAllPatients() throws SQLException {
         List<Patient> patients = new ArrayList<>();
         String sql = "SELECT p.*, d.name as doctor_name, b.bed_id " +
-                     "FROM patients p " +
-                     "LEFT JOIN doctors d ON p.doctor_id = d.doctor_id " +
-                     "LEFT JOIN beds b ON p.patient_id = b.patient_id " +
-                     "WHERE p.discharged_date IS NULL " +
-                     "ORDER BY p.patient_id";
+                "FROM patients p " +
+                "LEFT JOIN doctors d ON p.doctor_id = d.doctor_id " +
+                "LEFT JOIN beds b ON p.patient_id = b.patient_id " +
+                "WHERE p.discharged_date IS NULL " +
+                "ORDER BY p.patient_id";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 Patient patient = new Patient();
@@ -71,9 +136,9 @@ public class DataAccess {
     public List<Patient> getAdmittedPatients() throws SQLException {
         List<Patient> patients = new ArrayList<>();
         String sql = "SELECT * FROM patients WHERE discharged_date IS NULL";
-         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try (Connection conn = DatabaseConnection.getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 Patient patient = new Patient();
@@ -89,8 +154,8 @@ public class DataAccess {
         Patient patient = null;
         String sql = "SELECT * FROM patients WHERE patient_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
             pstmt.setInt(1, patientId);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
@@ -109,7 +174,7 @@ public class DataAccess {
     public boolean addDoctor(Doctor doctor) throws SQLException {
         String sql = "INSERT INTO doctors (name, specialization, phone, email) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, doctor.getName());
             pstmt.setString(2, doctor.getSpecialization());
@@ -126,8 +191,8 @@ public class DataAccess {
         String sql = "SELECT * FROM doctors ORDER BY name";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 Doctor doctor = new Doctor();
@@ -147,10 +212,10 @@ public class DataAccess {
     public List<Bed> getAllBeds() throws SQLException {
         List<Bed> beds = new ArrayList<>();
         String sql = "SELECT b.bed_id, b.ward, b.status, b.patient_id, p.name as patient_name " +
-                     "FROM beds b LEFT JOIN patients p ON b.patient_id = p.patient_id ORDER BY b.bed_id";
+                "FROM beds b LEFT JOIN patients p ON b.patient_id = p.patient_id ORDER BY b.bed_id";
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 Bed bed = new Bed();
                 bed.setBedId(rs.getInt("bed_id"));
@@ -167,11 +232,11 @@ public class DataAccess {
     private void assignFirstAvailableBed(int patientId) throws SQLException {
         String findBedSql = "SELECT bed_id FROM beds WHERE status = 'Available' LIMIT 1";
         String assignBedSql = "UPDATE beds SET status = 'Occupied', patient_id = ? WHERE bed_id = ?";
-        
+
         try (Connection conn = DatabaseConnection.getConnection()) {
             int bedId = -1;
             try (Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(findBedSql)) {
+                    ResultSet rs = stmt.executeQuery(findBedSql)) {
                 if (rs.next()) {
                     bedId = rs.getInt("bed_id");
                 }
@@ -218,7 +283,7 @@ public class DataAccess {
                 pstmtPatient.setInt(2, patientId);
                 pstmtPatient.executeUpdate();
             }
-            
+
             conn.commit();
             return true;
 
@@ -245,12 +310,12 @@ public class DataAccess {
     public List<Bill> getBillingHistory() throws SQLException {
         List<Bill> billingHistory = new ArrayList<>();
         String sql = "SELECT b.*, p.name as patient_name FROM billing b " +
-                     "JOIN patients p ON b.patient_id = p.patient_id " +
-                     "ORDER BY b.bill_date DESC, b.bill_id DESC";
+                "JOIN patients p ON b.patient_id = p.patient_id " +
+                "ORDER BY b.bill_date DESC, b.bill_id DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 Bill bill = new Bill();
