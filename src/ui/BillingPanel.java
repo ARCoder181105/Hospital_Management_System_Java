@@ -5,6 +5,7 @@ import model.Bill;
 import model.Patient;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.sql.SQLException;
@@ -24,83 +25,153 @@ public class BillingPanel extends JPanel {
     private JTextField bedChargeField, serviceChargeField, doctorFeeField, totalField, daysStayedField;
     private JButton previewBillButton, generateBillButton;
 
-    // --- Components for Billing History ---
+    // Components for Billing History
     private JTable historyTable;
     private DefaultTableModel historyTableModel;
     private JTextField searchField;
     private TableRowSorter<DefaultTableModel> sorter;
+    private JLabel totalRevenueLabel;
 
     public BillingPanel() {
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(15, 15));
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        setBackground(new Color(245, 245, 245));
 
-        // --- Top Panel for Generating New Bills ---
-        JPanel generationPanel = createGenerationPanel();
+        // Header Panel
+        JPanel headerPanel = createHeaderPanel();
+        add(headerPanel, BorderLayout.NORTH);
 
-        // --- Bottom Panel for Viewing Billing History ---
-        JPanel historyPanel = createHistoryPanel();
-        
-        // --- Split Pane to combine both panels ---
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, generationPanel, historyPanel);
-        splitPane.setDividerLocation(320); // Initial separation
+        // Main Content Panel
+        JSplitPane splitPane = createSplitPane();
         add(splitPane, BorderLayout.CENTER);
 
-        // Initial data load
         loadAdmittedPatients();
         loadBillingHistory();
         setupPatientComboBox();
     }
     
+    private JPanel createHeaderPanel() {
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(new Color(148, 0, 211));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        
+        JLabel titleLabel = new JLabel("💰 Billing & Discharge");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        titleLabel.setForeground(Color.WHITE);
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        
+        totalRevenueLabel = new JLabel("Total Revenue: ₹0.00");
+        totalRevenueLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        totalRevenueLabel.setForeground(Color.WHITE);
+        headerPanel.add(totalRevenueLabel, BorderLayout.EAST);
+        
+        return headerPanel;
+    }
+
+    private JSplitPane createSplitPane() {
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.setDividerLocation(350);
+        splitPane.setBorder(BorderFactory.createEmptyBorder());
+
+        // Top Panel for Bill Generation
+        JPanel generationPanel = createGenerationPanel();
+        splitPane.setTopComponent(generationPanel);
+
+        // Bottom Panel for History
+        JPanel historyPanel = createHistoryPanel();
+        splitPane.setBottomComponent(historyPanel);
+
+        return splitPane;
+    }
+
     private JPanel createGenerationPanel() {
-        JPanel formPanel = new JPanel(new GridLayout(8, 2, 10, 10));
-        formPanel.setBorder(BorderFactory.createTitledBorder("Generate Bill and Discharge Patient"));
-        formPanel.setMinimumSize(new Dimension(0, 300)); // Set a minimum size
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(new Color(148, 0, 211), 2),
+            "Generate Bill and Discharge Patient",
+            javax.swing.border.TitledBorder.LEFT,
+            javax.swing.border.TitledBorder.TOP,
+            new Font("Segoe UI", Font.BOLD, 12),
+            new Color(148, 0, 211)
+        ));
+        formPanel.setBackground(Color.WHITE);
 
-        formPanel.add(new JLabel("Select Admitted Patient:"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        // Patient Selection
+        gbc.gridx = 0; gbc.gridy = 0;
+        formPanel.add(createStyledLabel("Select Admitted Patient:*"), gbc);
+        gbc.gridx = 1;
         patientComboBox = new JComboBox<>();
-        formPanel.add(patientComboBox);
+        patientComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        patientComboBox.setBackground(Color.WHITE);
+        formPanel.add(patientComboBox, gbc);
         
-        formPanel.add(new JLabel("Days Stayed:"));
-        daysStayedField = new JTextField();
+        // Days Stayed
+        gbc.gridx = 0; gbc.gridy = 1;
+        formPanel.add(createStyledLabel("Days Stayed:"), gbc);
+        gbc.gridx = 1;
+        daysStayedField = createStyledTextField();
         daysStayedField.setEditable(false);
-        formPanel.add(daysStayedField);
+        formPanel.add(daysStayedField, gbc);
 
-        formPanel.add(new JLabel("Bed Charges (₹):"));
-        bedChargeField = new JTextField();
+        // Bed Charges
+        gbc.gridx = 0; gbc.gridy = 2;
+        formPanel.add(createStyledLabel("Bed Charges (₹):"), gbc);
+        gbc.gridx = 1;
+        bedChargeField = createStyledTextField();
         bedChargeField.setEditable(false);
-        formPanel.add(bedChargeField);
+        formPanel.add(bedChargeField, gbc);
 
-        formPanel.add(new JLabel("Service Charges (₹):"));
-        serviceChargeField = new JTextField();
+        // Service Charges
+        gbc.gridx = 0; gbc.gridy = 3;
+        formPanel.add(createStyledLabel("Service Charges (₹):"), gbc);
+        gbc.gridx = 1;
+        serviceChargeField = createStyledTextField();
         serviceChargeField.setEditable(false);
-        formPanel.add(serviceChargeField);
+        formPanel.add(serviceChargeField, gbc);
 
-        formPanel.add(new JLabel("Doctor's Fee (₹):"));
-        doctorFeeField = new JTextField();
+        // Doctor's Fee
+        gbc.gridx = 0; gbc.gridy = 4;
+        formPanel.add(createStyledLabel("Doctor's Fee (₹):"), gbc);
+        gbc.gridx = 1;
+        doctorFeeField = createStyledTextField();
         doctorFeeField.setEditable(false);
-        formPanel.add(doctorFeeField);
+        formPanel.add(doctorFeeField, gbc);
 
-        formPanel.add(new JLabel("Total (₹):"));
-        totalField = new JTextField();
+        // Total
+        gbc.gridx = 0; gbc.gridy = 5;
+        formPanel.add(createStyledLabel("Total (₹):"), gbc);
+        gbc.gridx = 1;
+        totalField = createStyledTextField();
         totalField.setEditable(false);
-        formPanel.add(totalField);
+        totalField.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        totalField.setBackground(new Color(255, 255, 200));
+        formPanel.add(totalField, gbc);
 
-        previewBillButton = new JButton("Preview Bill");
-        formPanel.add(previewBillButton);
+        // Buttons
+        gbc.gridx = 0; gbc.gridy = 6;
+        previewBillButton = createStyledButton("📊 Preview Bill", new Color(255, 140, 0));
+        previewBillButton.addActionListener(e -> previewBill());
+        formPanel.add(previewBillButton, gbc);
 
-        generateBillButton = new JButton("Generate Bill & Discharge");
-        formPanel.add(generateBillButton);
-        
-        JButton refreshButton = new JButton("Refresh Lists");
-        formPanel.add(new JLabel()); // Add a placeholder to align the button
-        formPanel.add(refreshButton);
+        gbc.gridx = 1;
+        generateBillButton = createStyledButton("💳 Generate Bill & Discharge", new Color(34, 139, 34));
+        generateBillButton.addActionListener(e -> generateBill());
+        formPanel.add(generateBillButton, gbc);
 
+        // Refresh Button
+        gbc.gridx = 1; gbc.gridy = 7;
+        gbc.anchor = GridBagConstraints.EAST;
+        JButton refreshButton = createStyledButton("🔄 Refresh Lists", new Color(148, 0, 211));
         refreshButton.addActionListener(e -> {
             loadAdmittedPatients();
             loadBillingHistory();
         });
-
-        previewBillButton.addActionListener(e -> previewBill());
-        generateBillButton.addActionListener(e -> generateBill());
+        formPanel.add(refreshButton, gbc);
 
         return formPanel;
     }
@@ -108,22 +179,42 @@ public class BillingPanel extends JPanel {
     private JPanel createHistoryPanel() {
         JPanel historyPanel = new JPanel(new BorderLayout(10, 10));
         historyPanel.setBorder(BorderFactory.createTitledBorder("Billing History"));
+        historyPanel.setBackground(Color.WHITE);
 
         // Search bar
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        searchPanel.add(new JLabel("Search by Patient Name:"));
+        searchPanel.setBackground(Color.WHITE);
+        searchPanel.add(createStyledLabel("Search by Patient Name:"));
         searchField = new JTextField(20);
+        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         searchPanel.add(searchField);
         historyPanel.add(searchPanel, BorderLayout.NORTH);
         
         // History Table
         String[] columnNames = {"Bill ID", "Patient Name", "Total (₹)", "Bill Date"};
-        historyTableModel = new DefaultTableModel(columnNames, 0);
+        historyTableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         historyTable = new JTable(historyTableModel);
+        historyTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        historyTable.setRowHeight(25);
+        historyTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        
+        // Style table header
+        JTableHeader header = historyTable.getTableHeader();
+        header.setBackground(new Color(148, 0, 211));
+        header.setForeground(Color.WHITE);
+        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
         sorter = new TableRowSorter<>(historyTableModel);
         historyTable.setRowSorter(sorter);
 
-        historyPanel.add(new JScrollPane(historyTable), BorderLayout.CENTER);
+        JScrollPane scrollPane = new JScrollPane(historyTable);
+        scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        historyPanel.add(scrollPane, BorderLayout.CENTER);
 
         // Search functionality
         searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
@@ -135,7 +226,6 @@ public class BillingPanel extends JPanel {
                 if (text.trim().length() == 0) {
                     sorter.setRowFilter(null);
                 } else {
-                    // Case-insensitive search on column 1 (Patient Name)
                     sorter.setRowFilter(RowFilter.regexFilter("(?i)" + text, 1));
                 }
             }
@@ -144,20 +234,60 @@ public class BillingPanel extends JPanel {
         return historyPanel;
     }
 
+    private JLabel createStyledLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        return label;
+    }
+
+    private JTextField createStyledTextField() {
+        JTextField field = new JTextField();
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        field.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.GRAY),
+            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+        return field;
+    }
+
+    private JButton createStyledButton(String text, Color color) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        button.setBackground(color);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(color.darker());
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(color);
+            }
+        });
+        
+        return button;
+    }
+
     private void loadBillingHistory() {
         try {
-            historyTableModel.setRowCount(0); // Clear existing data
+            historyTableModel.setRowCount(0);
             List<Bill> history = dataAccess.getBillingHistory();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            double totalRevenue = 0;
+            
             for (Bill bill : history) {
                 Object[] row = {
                     bill.getBillId(),
                     bill.getPatientName(),
-                    String.format("%.2f", bill.getTotal()),
+                    String.format("₹%.2f", bill.getTotal()),
                     dateFormat.format(bill.getBillDate())
                 };
                 historyTableModel.addRow(row);
+                totalRevenue += bill.getTotal();
             }
+            totalRevenueLabel.setText(String.format("Total Revenue: ₹%.2f", totalRevenue));
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading billing history: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -227,14 +357,16 @@ public class BillingPanel extends JPanel {
         bill.setTotal(Double.parseDouble(totalField.getText()));
         bill.setBillDate(new Date());
 
-        int choice = JOptionPane.showConfirmDialog(this, "This will discharge the patient and free their bed. Are you sure?", "Confirm Discharge", JOptionPane.YES_NO_OPTION);
+        int choice = JOptionPane.showConfirmDialog(this, 
+            "This will discharge the patient and free their bed.\nAre you sure?", 
+            "Confirm Discharge", JOptionPane.YES_NO_OPTION);
         if (choice == JOptionPane.YES_OPTION) {
             try {
                 if (dataAccess.dischargePatient(selectedPatient.getPatientId(), bill)) {
                     JOptionPane.showMessageDialog(this, "Bill generated and patient discharged successfully!");
                     clearFields();
                     loadAdmittedPatients();
-                    loadBillingHistory(); // REFRESH THE HISTORY TABLE
+                    loadBillingHistory();
                 } else {
                     JOptionPane.showMessageDialog(this, "Operation failed.", "Database Error", JOptionPane.ERROR_MESSAGE);
                 }

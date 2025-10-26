@@ -5,6 +5,7 @@ import model.Doctor;
 import model.Patient;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.sql.SQLException;
 import java.util.Date;
@@ -18,67 +19,202 @@ public class PatientPanel extends JPanel {
     private JButton submitButton;
     private JTable patientTable;
     private DefaultTableModel tableModel;
+    private JLabel countLabel;
 
     public PatientPanel() {
-        setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setLayout(new BorderLayout(15, 15));
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        setBackground(new Color(245, 245, 245));
+
+        // Header Panel
+        JPanel headerPanel = createHeaderPanel();
+        add(headerPanel, BorderLayout.NORTH);
+
+        // Main Content Panel
+        JSplitPane splitPane = createSplitPane();
+        add(splitPane, BorderLayout.CENTER);
+
+        loadDoctors();
+        loadPatients();
+    }
+
+    private JPanel createHeaderPanel() {
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(new Color(60, 179, 113));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        
+        JLabel titleLabel = new JLabel("👥 Patient Management");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        titleLabel.setForeground(Color.WHITE);
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        
+        countLabel = new JLabel("Admitted Patients: 0");
+        countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        countLabel.setForeground(Color.WHITE);
+        headerPanel.add(countLabel, BorderLayout.EAST);
+        
+        return headerPanel;
+    }
+
+    private JSplitPane createSplitPane() {
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.setDividerLocation(300);
+        splitPane.setBorder(BorderFactory.createEmptyBorder());
 
         // Form Panel
-        JPanel formPanel = new JPanel(new GridLayout(6, 2, 5, 5));
-        formPanel.setBorder(BorderFactory.createTitledBorder("Patient Registration"));
-
-        formPanel.add(new JLabel("Name:"));
-        nameField = new JTextField();
-        formPanel.add(nameField);
-
-        formPanel.add(new JLabel("Age:"));
-        ageField = new JTextField();
-        formPanel.add(ageField);
-
-        formPanel.add(new JLabel("Gender:"));
-        genderComboBox = new JComboBox<>(new String[]{"Male", "Female", "Other"});
-        formPanel.add(genderComboBox);
-
-        formPanel.add(new JLabel("Illness:"));
-        illnessField = new JTextField();
-        formPanel.add(illnessField);
-        
-        formPanel.add(new JLabel("Assign Doctor:"));
-        doctorComboBox = new JComboBox<>();
-        formPanel.add(doctorComboBox);
-
-        submitButton = new JButton("Register Patient");
-        formPanel.add(new JLabel()); // Placeholder
-        formPanel.add(submitButton);
+        JPanel formPanel = createFormPanel();
+        splitPane.setTopComponent(formPanel);
 
         // Table Panel
-        JPanel tablePanel = new JPanel(new BorderLayout());
+        JPanel tablePanel = createTablePanel();
+        splitPane.setBottomComponent(tablePanel);
+
+        return splitPane;
+    }
+
+    private JPanel createFormPanel() {
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(new Color(60, 179, 113), 2),
+            "Patient Registration",
+            javax.swing.border.TitledBorder.LEFT,
+            javax.swing.border.TitledBorder.TOP,
+            new Font("Segoe UI", Font.BOLD, 12),
+            new Color(60, 179, 113)
+        ));
+        formPanel.setBackground(Color.WHITE);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        // Name Field
+        gbc.gridx = 0; gbc.gridy = 0;
+        formPanel.add(createStyledLabel("Name:*"), gbc);
+        gbc.gridx = 1;
+        nameField = createStyledTextField();
+        formPanel.add(nameField, gbc);
+
+        // Age Field
+        gbc.gridx = 0; gbc.gridy = 1;
+        formPanel.add(createStyledLabel("Age:*"), gbc);
+        gbc.gridx = 1;
+        ageField = createStyledTextField();
+        formPanel.add(ageField, gbc);
+
+        // Gender Field
+        gbc.gridx = 0; gbc.gridy = 2;
+        formPanel.add(createStyledLabel("Gender:*"), gbc);
+        gbc.gridx = 1;
+        genderComboBox = new JComboBox<>(new String[]{"Male", "Female", "Other"});
+        genderComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        genderComboBox.setBackground(Color.WHITE);
+        formPanel.add(genderComboBox, gbc);
+
+        // Illness Field
+        gbc.gridx = 0; gbc.gridy = 3;
+        formPanel.add(createStyledLabel("Illness:*"), gbc);
+        gbc.gridx = 1;
+        illnessField = createStyledTextField();
+        formPanel.add(illnessField, gbc);
+        
+        // Doctor Field
+        gbc.gridx = 0; gbc.gridy = 4;
+        formPanel.add(createStyledLabel("Assign Doctor:*"), gbc);
+        gbc.gridx = 1;
+        doctorComboBox = new JComboBox<>();
+        doctorComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        doctorComboBox.setBackground(Color.WHITE);
+        formPanel.add(doctorComboBox, gbc);
+
+        // Submit Button
+        gbc.gridx = 1; gbc.gridy = 5;
+        gbc.anchor = GridBagConstraints.EAST;
+        submitButton = createStyledButton("➕ Register Patient", new Color(60, 179, 113));
+        submitButton.addActionListener(e -> registerPatient());
+        formPanel.add(submitButton, gbc);
+
+        return formPanel;
+    }
+
+    private JPanel createTablePanel() {
+        JPanel tablePanel = new JPanel(new BorderLayout(10, 10));
         tablePanel.setBorder(BorderFactory.createTitledBorder("Admitted Patients"));
+        tablePanel.setBackground(Color.WHITE);
+
         String[] columnNames = {"ID", "Name", "Age", "Gender", "Illness", "Admitted Date", "Assigned Doctor", "Bed ID"};
-        tableModel = new DefaultTableModel(columnNames, 0);
+        tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        
         patientTable = new JTable(tableModel);
-        tablePanel.add(new JScrollPane(patientTable), BorderLayout.CENTER);
+        patientTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        patientTable.setRowHeight(25);
+        patientTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        
+        // Style table header
+        JTableHeader header = patientTable.getTableHeader();
+        header.setBackground(new Color(60, 179, 113));
+        header.setForeground(Color.WHITE);
+        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
-        add(formPanel, BorderLayout.NORTH);
-        add(tablePanel, BorderLayout.CENTER);
+        JScrollPane scrollPane = new JScrollPane(patientTable);
+        scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        tablePanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Bottom Panel for Refresh button
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JButton refreshButton = new JButton("Refresh Lists");
-        bottomPanel.add(refreshButton);
-        add(bottomPanel, BorderLayout.SOUTH);
-
+        // Refresh button
+        JButton refreshButton = createStyledButton("🔄 Refresh List", new Color(60, 179, 113));
         refreshButton.addActionListener(e -> {
             loadDoctors();
             loadPatients();
         });
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.add(refreshButton);
+        tablePanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        // Load initial data
-        loadDoctors();
-        loadPatients();
+        return tablePanel;
+    }
 
-        // Add action listener
-        submitButton.addActionListener(e -> registerPatient());
+    private JLabel createStyledLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        return label;
+    }
+
+    private JTextField createStyledTextField() {
+        JTextField field = new JTextField();
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        field.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.GRAY),
+            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+        return field;
+    }
+
+    private JButton createStyledButton(String text, Color color) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        button.setBackground(color);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(color.darker());
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(color);
+            }
+        });
+        
+        return button;
     }
 
     public void loadDoctors() {
@@ -95,7 +231,7 @@ public class PatientPanel extends JPanel {
     
     private void loadPatients() {
         try {
-            tableModel.setRowCount(0); // Clear existing data
+            tableModel.setRowCount(0);
             List<Patient> patients = dataAccess.getAllPatients();
             for (Patient p : patients) {
                 Object[] row = {
@@ -110,6 +246,7 @@ public class PatientPanel extends JPanel {
                 };
                 tableModel.addRow(row);
             }
+            countLabel.setText("Admitted Patients: " + patients.size());
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading patients: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -117,7 +254,6 @@ public class PatientPanel extends JPanel {
 
     private void registerPatient() {
         try {
-            // Basic validation
             if (nameField.getText().trim().isEmpty() || ageField.getText().trim().isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Patient Name and Age cannot be empty.", "Input Error", JOptionPane.WARNING_MESSAGE);
                 return;
@@ -128,7 +264,7 @@ public class PatientPanel extends JPanel {
             patient.setAge(Integer.parseInt(ageField.getText().trim()));
             patient.setGender((String) genderComboBox.getSelectedItem());
             patient.setIllness(illnessField.getText().trim());
-            patient.setAdmittedDate(new Date()); // Set current date as admitted date
+            patient.setAdmittedDate(new Date());
             
             Doctor selectedDoctor = (Doctor) doctorComboBox.getSelectedItem();
             if (selectedDoctor == null) {
@@ -139,8 +275,7 @@ public class PatientPanel extends JPanel {
 
             if (dataAccess.addPatient(patient)) {
                 JOptionPane.showMessageDialog(this, "Patient registered successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                loadPatients(); // Refresh the table
-                // Clear fields
+                loadPatients();
                 nameField.setText("");
                 ageField.setText("");
                 illnessField.setText("");
