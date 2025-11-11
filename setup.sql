@@ -1,15 +1,20 @@
 -- ========== STEP 1: CREATE THE DATABASE ==========
 -- Note: You may need to run this command separately from the rest of the script.
+-- You must have superuser privileges to create a database.
 CREATE DATABASE hospital_db;
 
 -- ========== STEP 2: CONNECT TO THE NEW DATABASE ==========
--- In psql, run: \c hospital_db
--- In a GUI tool, just reconnect and select "hospital_db".
+-- In psql, you would run this command.
+-- In a GUI tool like DBeaver, just right-click and "Reconnect" to see the new DB,
+-- then open a new SQL script window for *this* database.
+\c hospital_db;
 
 ---
 --- ========== STEP 3: DROP ALL EXISTING TABLES ==========
 ---
+-- This ensures a clean setup if the script is run multiple times.
 DROP TABLE IF EXISTS billing CASCADE;
+DROP TABLE IF EXISTS appointments CASCADE;
 DROP TABLE IF EXISTS beds CASCADE;
 DROP TABLE IF EXISTS patients CASCADE;
 DROP TABLE IF EXISTS doctors CASCADE;
@@ -32,13 +37,13 @@ CREATE TABLE employees (
 );
 
 CREATE TABLE doctors (
-    doctor_id SERIAL PRIMARY KEY,
+    doctor_id SERIAL PRIMARY KEY,  -- Auto-incrementing
     name VARCHAR(100) NOT NULL,
     specialization VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
     email VARCHAR(100),
     consultation_fee NUMERIC(10, 2),
-    available_days VARCHAR(100)
+    available_days VARCHAR(100) -- e.g., "Mon,Tue,Wed"
 );
 
 CREATE TABLE config_illnesses (
@@ -53,11 +58,11 @@ CREATE TABLE config_bed_types (
 );
 
 CREATE TABLE patients (
-    patient_id SERIAL PRIMARY KEY,
+    patient_id SERIAL PRIMARY KEY, -- Auto-incrementing
     name VARCHAR(100) NOT NULL,
     age INT NOT NULL,
     gender VARCHAR(20),
-    admitted_date DATE NOT NULL,
+    admitted_date DATE, -- Can be NULL for outpatients
     discharged_date DATE,
     doctor_id INT,
     disease_severity VARCHAR(50),
@@ -70,7 +75,7 @@ CREATE TABLE patients (
 );
 
 CREATE TABLE beds (
-    bed_id SERIAL PRIMARY KEY,
+    bed_id SERIAL PRIMARY KEY, -- Auto-incrementing
     ward VARCHAR(100) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'Available',
     patient_id INT UNIQUE,
@@ -81,7 +86,7 @@ CREATE TABLE beds (
 );
 
 CREATE TABLE billing (
-    bill_id SERIAL PRIMARY KEY,
+    bill_id SERIAL PRIMARY KEY, -- Auto-incrementing
     patient_id INT NOT NULL,
     bed_charge NUMERIC(10, 2),
     service_charge NUMERIC(10, 2),
@@ -89,6 +94,17 @@ CREATE TABLE billing (
     total NUMERIC(10, 2) NOT NULL,
     bill_date DATE NOT NULL,
     FOREIGN KEY (patient_id) REFERENCES patients(patient_id)
+);
+
+CREATE TABLE appointments (
+    appointment_id SERIAL PRIMARY KEY,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    appointment_date DATE NOT NULL,
+    appointment_time VARCHAR(20) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Scheduled', -- Scheduled, Cancelled
+    FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+    FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id)
 );
 
 ---
@@ -107,7 +123,7 @@ INSERT INTO config_illnesses (illness_name) VALUES
 ('Appendicitis'), ('Gallstones'), ('Kidney Stones'),
 ('Heart Attack'), ('Stroke'), ('Diabetes Management'), ('Other...');
 
--- Main Tables
+-- Employees (IDs 1-8)
 INSERT INTO employees (employee_number, password, name, role, department) VALUES
 ('EMP001', 'admin123', 'Dr. Sarah Wilson', 'Administrator', 'Management'),
 ('EMP002', 'nurse123', 'Jennifer Martinez', 'Head Nurse', 'Nursing'),
@@ -118,6 +134,7 @@ INSERT INTO employees (employee_number, password, name, role, department) VALUES
 ('EMP007', 'doctor456', 'Dr. Priya Sharma', 'Doctor', 'Pediatrics'),
 ('EMP008', 'admin456', 'Maria Garcia', 'IT Admin', 'IT');
 
+-- Doctors (IDs 1-3)
 INSERT INTO doctors (name, specialization, phone, email, consultation_fee, available_days) VALUES
 ('Dr. Michael Chen', 'Cardiology', '9876543210', 'michael.chen@hospital.com', 2000.00, 'Mon,Wed,Fri'),
 ('Dr. Priya Sharma', 'Pediatrics', '9876543211', 'priya.sharma@hospital.com', 1200.00, 'Tue,Thu,Sat'),
@@ -142,6 +159,7 @@ INSERT INTO beds (ward, floor, bed_type_id) VALUES
 ('ICU-B', 4, 4), ('ICU-B', 4, 4);
 
 -- Patients (IDs 1-8)
+-- Note: doctor_id 1 = Dr. Chen, 2 = Dr. Sharma, 3 = Dr. Reddy
 INSERT INTO patients (name, age, gender, admitted_date, doctor_id, disease_severity, requested_bed_type_id, illness_id) VALUES
 ('Aarav Kumar', 68, 'Male', '2025-11-11', 1, 'Severe', 3, 8), -- Private, Heart Attack
 ('Saanvi Desai', 55, 'Female', '2025-11-10', 1, 'Moderate', 2, 3), -- Semi-Private, Pneumonia
@@ -163,6 +181,13 @@ UPDATE beds SET status = 'Occupied', patient_id = 5 WHERE bed_id = 2;
 -- Patient 6 (Vihaan Singh) is 'Mild' and gets no bed.
 UPDATE beds SET status = 'Occupied', patient_id = 7 WHERE bed_id = 3;
 UPDATE beds SET status = 'Occupied', patient_id = 8 WHERE bed_id = 16; -- Linked to an ICU bed
+
+---
+--- ========== STEP 7: ADD TEST APPOINTMENTS ==========
+---
+-- This appoints Vihaan Singh (Patient 6, "Mild") with Dr. Priya Sharma (Doctor 2)
+INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status)
+VALUES (6, 2, '2025-11-13', '10:00 AM', 'Scheduled');
 
 ---
 --- SETUP COMPLETE
