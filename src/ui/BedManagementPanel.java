@@ -13,44 +13,38 @@ public class BedManagementPanel extends JPanel {
     private JLabel countLabel;
     private int totalBeds = 0;
     
-    // [START] NEW UI Components
-    private JPanel mainContentPanel; // This will hold all the floor panels
+    private JPanel mainContentPanel;
     private JScrollPane scrollPane;
-    // [END] NEW UI Components
 
     public BedManagementPanel() {
         setLayout(new BorderLayout(15, 15));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         setBackground(new Color(245, 245, 245));
 
-        // Header Panel
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
 
-        // [START] NEW Graphical Panel
-        // Main panel to hold all floors, uses BoxLayout to stack them vertically
         mainContentPanel = new JPanel();
         mainContentPanel.setLayout(new BoxLayout(mainContentPanel, BoxLayout.Y_AXIS));
         mainContentPanel.setBackground(Color.WHITE);
         
-        // Add the main panel to a scroll pane
         scrollPane = new JScrollPane(mainContentPanel);
         scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         
+        // This makes the scroll speed reasonable
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
         add(scrollPane, BorderLayout.CENTER);
-        // [END] NEW Graphical Panel
 
-        // Bottom Panel
         JPanel bottomPanel = createBottomPanel();
         add(bottomPanel, BorderLayout.SOUTH);
 
-        refreshBedLayout(); // Initial load
+        refreshBedLayout();
     }
 
     private JPanel createHeaderPanel() {
-        // ... (unchanged) ...
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(new Color(165, 42, 42));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
@@ -65,16 +59,11 @@ public class BedManagementPanel extends JPanel {
         return headerPanel;
     }
 
-    // [START] REMOVED createTablePanel()
-    // The table panel is no longer used.
-    // [END] REMOVED createTablePanel()
-
     private JPanel createBottomPanel() {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         bottomPanel.setBackground(Color.WHITE);
         
         JButton refreshButton = createStyledButton("REFRESH STATUS", new Color(165, 42, 42));
-        // Button now calls the new refresh method
         refreshButton.addActionListener(e -> refreshBedLayout());
         bottomPanel.add(refreshButton);
         
@@ -82,7 +71,6 @@ public class BedManagementPanel extends JPanel {
     }
 
     private JButton createStyledButton(String text, Color color) {
-        // ... (unchanged) ...
         JButton button = new JButton(text);
         button.setFont(new Font("Segoe UI", Font.BOLD, 12));
         button.setBackground(color);
@@ -100,27 +88,24 @@ public class BedManagementPanel extends JPanel {
         return button;
     }
 
-    // [START] NEW METHOD: refreshBedLayout
-    /**
-     * This method replaces loadBedData(). It fetches beds grouped by floor
-     * and dynamically builds the graphical UI.
-     */
     public void refreshBedLayout() {
-        mainContentPanel.removeAll(); // Clear the existing layout
+        mainContentPanel.removeAll();
         totalBeds = 0;
         int availableBeds = 0;
         int occupiedBeds = 0;
 
         try {
-            // Get the beds grouped by floor
             Map<Integer, List<Bed>> floorMap = dataAccess.getBedsGroupedByFloor();
 
             for (Map.Entry<Integer, List<Bed>> entry : floorMap.entrySet()) {
                 int floorNumber = entry.getKey();
                 List<Bed> bedsOnFloor = entry.getValue();
 
-                // Create a panel for this floor
-                JPanel floorPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+                // [START] THE FIX
+                // Use WrapLayout instead of FlowLayout
+                JPanel floorPanel = new JPanel(new WrapLayout(WrapLayout.LEFT, 10, 10));
+                // [END] THE FIX
+                
                 floorPanel.setBackground(Color.WHITE);
                 floorPanel.setBorder(BorderFactory.createTitledBorder(
                     BorderFactory.createLineBorder(Color.LIGHT_GRAY),
@@ -131,7 +116,6 @@ public class BedManagementPanel extends JPanel {
                     Color.DARK_GRAY
                 ));
                 
-                // Add all bed blocks to this floor panel
                 for (Bed bed : bedsOnFloor) {
                     floorPanel.add(new BedBlock(bed));
                     totalBeds++;
@@ -142,12 +126,10 @@ public class BedManagementPanel extends JPanel {
                     }
                 }
                 
-                // Add the completed floor panel to the main content panel
                 mainContentPanel.add(floorPanel);
                 mainContentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
             }
             
-            // Update the count label in the header
             countLabel.setText(String.format(
                 "Total Beds: %d (Available: %d | Occupied: %d)",
                 totalBeds, availableBeds, occupiedBeds
@@ -158,13 +140,7 @@ public class BedManagementPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Error loading bed data: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
 
-        // Refresh the UI
         mainContentPanel.revalidate();
         mainContentPanel.repaint();
     }
-    // [END] NEW METHOD: refreshBedLayout
 }
-
-// [START] REMOVED BedStatusRenderer
-// This class is no longer needed as the BedBlock handles its own coloring.
-// [END] REMOVED BedStatusRenderer

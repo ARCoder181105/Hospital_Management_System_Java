@@ -239,7 +239,7 @@ public class DataAccess {
     // ========== DOCTOR METHODS ==========
 
     public boolean addDoctor(Doctor doctor) throws SQLException {
-        String sql = "INSERT INTO doctors (name, specialization, phone, email) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO doctors (name, specialization, phone, email, consultation_fee, available_days) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
@@ -247,13 +247,16 @@ public class DataAccess {
             pstmt.setString(2, doctor.getSpecialization());
             pstmt.setString(3, doctor.getPhone());
             pstmt.setString(4, doctor.getEmail());
+            pstmt.setDouble(5, doctor.getConsultationFee());
+            pstmt.setString(6, doctor.getAvailableDays());
 
-            return pstmt.executeUpdate() > 0;
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
         }
     }
 
     public boolean updateDoctor(Doctor doctor) throws SQLException {
-        String sql = "UPDATE doctors SET name = ?, specialization = ?, phone = ?, email = ? WHERE doctor_id = ?";
+        String sql = "UPDATE doctors SET name = ?, specialization = ?, phone = ?, email = ?, consultation_fee = ?, available_days = ? WHERE doctor_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
@@ -261,9 +264,12 @@ public class DataAccess {
             pstmt.setString(2, doctor.getSpecialization());
             pstmt.setString(3, doctor.getPhone());
             pstmt.setString(4, doctor.getEmail());
-            pstmt.setInt(5, doctor.getDoctorId());
+            pstmt.setDouble(5, doctor.getConsultationFee());
+            pstmt.setString(6, doctor.getAvailableDays());
+            pstmt.setInt(7, doctor.getDoctorId());
 
-            return pstmt.executeUpdate() > 0;
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
         }
     }
 
@@ -271,15 +277,16 @@ public class DataAccess {
         String sql = "DELETE FROM doctors WHERE doctor_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
             pstmt.setInt(1, doctorId);
-            return pstmt.executeUpdate() > 0;
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
         }
     }
 
     public List<Doctor> getAllDoctors() throws SQLException {
         List<Doctor> doctors = new ArrayList<>();
         String sql = "SELECT * FROM doctors ORDER BY name";
+
         try (Connection conn = DatabaseConnection.getConnection();
                 Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(sql)) {
@@ -291,6 +298,8 @@ public class DataAccess {
                 doctor.setSpecialization(rs.getString("specialization"));
                 doctor.setPhone(rs.getString("phone"));
                 doctor.setEmail(rs.getString("email"));
+                doctor.setConsultationFee(rs.getDouble("consultation_fee"));
+                doctor.setAvailableDays(rs.getString("available_days"));
                 doctors.add(doctor);
             }
         }
@@ -500,4 +509,5 @@ public class DataAccess {
         }
         return floorMap;
     }
+
 }

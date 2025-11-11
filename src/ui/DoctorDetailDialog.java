@@ -39,7 +39,7 @@ public class DoctorDetailDialog extends JDialog {
         
         // Split pane for details and patient list
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitPane.setDividerLocation(150);
+        splitPane.setDividerLocation(180); // Increased height for details
         splitPane.setTopComponent(createDetailsPanel(doctor));
         splitPane.setBottomComponent(createPatientListPanel(doctor));
         
@@ -54,6 +54,7 @@ public class DoctorDetailDialog extends JDialog {
         add(buttonPanel, BorderLayout.SOUTH);
     }
 
+    // [START] UPDATED METHOD: createDetailsPanel
     private JPanel createDetailsPanel(Doctor doctor) {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
@@ -63,24 +64,27 @@ public class DoctorDetailDialog extends JDialog {
         gbc.insets = new Insets(8, 5, 8, 5);
         
         addDetailRow(panel, gbc, 0, "Doctor ID:", String.valueOf(doctor.getDoctorId()));
-        addDetailRow(panel, gbc, 1, "Phone:", doctor.getPhone());
-        addDetailRow(panel, gbc, 2, "Email:", doctor.getEmail());
+        addDetailRow(panel, gbc, 1, "Phone:", doctor.getPhone() != null ? doctor.getPhone() : "N/A");
+        addDetailRow(panel, gbc, 2, "Email:", doctor.getEmail() != null ? doctor.getEmail() : "N/A");
+        addDetailRow(panel, gbc, 3, "Consultation Fee:", String.format("Rs. %.2f", doctor.getConsultationFee()));
+        addDetailRow(panel, gbc, 4, "Available Days:", doctor.getAvailableDays() != null ? doctor.getAvailableDays() : "N/A");
         
         return panel;
     }
+    // [END] UPDATED METHOD: createDetailsPanel
 
     private void addDetailRow(JPanel panel, GridBagConstraints gbc, int y, String label, String value) {
         gbc.gridy = y;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.WEST;
-        gbc.weightx = 0.3;
+        gbc.weightx = 0.4; // Adjusted weight
         JLabel lbl = new JLabel(label);
         lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
         panel.add(lbl, gbc);
         
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.EAST;
-        gbc.weightx = 0.7;
+        gbc.weightx = 0.6; // Adjusted weight
         JLabel val = new JLabel(value);
         val.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         val.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -88,14 +92,13 @@ public class DoctorDetailDialog extends JDialog {
     }
     
     private JPanel createPatientListPanel(Doctor doctor) {
+        // ... (unchanged) ...
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createTitledBorder("Assigned Patients (Active)"));
-        
         DefaultListModel<String> listModel = new DefaultListModel<>();
         JList<String> patientList = new JList<>(listModel);
         patientList.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        
         try {
             List<Patient> patients = dataAccess.getPatientsByDoctorId(doctor.getDoctorId());
             if (patients.isEmpty()) {
@@ -109,7 +112,6 @@ public class DoctorDetailDialog extends JDialog {
             e.printStackTrace();
             listModel.addElement("Error loading patients.");
         }
-        
         panel.add(new JScrollPane(patientList), BorderLayout.CENTER);
         return panel;
     }
