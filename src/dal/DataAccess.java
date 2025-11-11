@@ -700,6 +700,33 @@ public class DataAccess {
     }
     // ========== APPOINTMENT METHODS ==========
 
+    // [START] NEW METHOD: getAppointmentById
+    /**
+     * Gets a single appointment by its ID.
+     */
+    public Appointment getAppointmentById(int appointmentId) throws SQLException {
+        String sql = "SELECT * FROM appointments WHERE appointment_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, appointmentId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    Appointment appt = new Appointment();
+                    appt.setAppointmentId(rs.getInt("appointment_id"));
+                    appt.setPatientId(rs.getInt("patient_id"));
+                    appt.setDoctorId(rs.getInt("doctor_id"));
+                    appt.setAppointmentDate(rs.getDate("appointment_date"));
+                    appt.setAppointmentTime(rs.getString("appointment_time"));
+                    appt.setStatus(rs.getString("status"));
+                    return appt;
+                }
+            }
+        }
+        return null;
+    }
+    // [END] NEW METHOD: getAppointmentById
+
     /**
      * Gets all scheduled (not cancelled) appointments for a specific date.
      */
@@ -755,6 +782,26 @@ public class DataAccess {
         return slots;
     }
 
+    public int getAppointmentBySlot(int doctorId, Date date, String time) throws SQLException {
+        String sql = "SELECT appointment_id FROM appointments " +
+                "WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ? AND status = 'Scheduled'";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, doctorId);
+            pstmt.setDate(2, new java.sql.Date(date.getTime()));
+            pstmt.setString(3, time);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("appointment_id");
+                }
+            }
+        }
+        return -1; // No appointment found
+    }
+
     /**
      * Adds a new appointment to the database.
      */
@@ -771,6 +818,26 @@ public class DataAccess {
             return pstmt.executeUpdate() > 0;
         }
     }
+
+    // [START] NEW METHOD: updateAppointment
+    /**
+     * Updates an existing appointment's date, time, and status.
+     */
+    public boolean updateAppointment(Appointment appt) throws SQLException {
+        String sql = "UPDATE appointments SET patient_id = ?, doctor_id = ?, appointment_date = ?, appointment_time = ?, status = 'Scheduled' WHERE appointment_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, appt.getPatientId());
+            pstmt.setInt(2, appt.getDoctorId());
+            pstmt.setDate(3, new java.sql.Date(appt.getAppointmentDate().getTime()));
+            pstmt.setString(4, appt.getAppointmentTime());
+            pstmt.setInt(5, appt.getAppointmentId());
+
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+    // [END] NEW METHOD: updateAppointment
 
     /**
      * Cancels an existing appointment by setting its status.
