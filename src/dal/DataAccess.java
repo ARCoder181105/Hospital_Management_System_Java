@@ -9,11 +9,12 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.TreeMap; // Used to sort floors
 
 public class DataAccess {
 
     // ========== EMPLOYEE/LOGIN METHODS ==========
+    // (Unchanged)
 
     public Employee authenticateEmployee(String employeeNumber, String password) throws SQLException {
         String sql = "SELECT * FROM employees WHERE employee_number = ? AND password = ? AND active = true";
@@ -41,6 +42,7 @@ public class DataAccess {
 
     public boolean addEmployee(Employee employee) throws SQLException {
         String sql = "INSERT INTO employees (employee_number, password, name, role, department) VALUES (?, ?, ?, ?, ?)";
+
         try (Connection conn = DatabaseConnection.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
@@ -50,7 +52,8 @@ public class DataAccess {
             pstmt.setString(4, employee.getRole());
             pstmt.setString(5, employee.getDepartment());
 
-            return pstmt.executeUpdate() > 0;
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
         }
     }
 
@@ -76,6 +79,7 @@ public class DataAccess {
     }
 
     // ========== PATIENT METHODS ==========
+    // (Unchanged)
 
     public boolean addPatient(Patient patient) throws SQLException {
         String sql = "INSERT INTO patients (name, age, gender, illness, admitted_date, doctor_id, disease_severity, requested_bed_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
@@ -89,7 +93,7 @@ public class DataAccess {
             pstmt.setDate(5, new java.sql.Date(patient.getAdmittedDate().getTime()));
             pstmt.setInt(6, patient.getDoctorId());
             pstmt.setString(7, patient.getDiseaseSeverity());
-            pstmt.setString(8, patient.getRequestedBedType());
+            pstmt.setString(8, patient.getRequestedBedType()); 
 
             int affectedRows = pstmt.executeUpdate();
 
@@ -97,11 +101,11 @@ public class DataAccess {
                 try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         int patientId = generatedKeys.getInt(1);
-                        if (!"Mild".equalsIgnoreCase(patient.getDiseaseSeverity())) {
+                        
+                        if (!"Mild".equals(patient.getDiseaseSeverity())) {
                             boolean bedAssigned = assignAvailableBed(patientId, patient.getRequestedBedType());
                             if (!bedAssigned) {
-                                System.err
-                                        .println("Warning: No available bed of type " + patient.getRequestedBedType());
+                                System.err.println("Warning: No bed of type '" + patient.getRequestedBedType() + "' available for patient ID: " + patientId);
                             }
                         }
                     }
@@ -124,8 +128,9 @@ public class DataAccess {
             pstmt.setString(6, patient.getDiseaseSeverity());
             pstmt.setString(7, patient.getRequestedBedType());
             pstmt.setInt(8, patient.getPatientId());
-
-            return pstmt.executeUpdate() > 0;
+            
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
         }
     }
 
@@ -133,38 +138,43 @@ public class DataAccess {
         Connection conn = null;
         try {
             conn = DatabaseConnection.getConnection();
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(false); 
 
             String bedSql = "UPDATE beds SET status = 'Available', patient_id = NULL WHERE patient_id = ?";
             try (PreparedStatement pstmtBed = conn.prepareStatement(bedSql)) {
                 pstmtBed.setInt(1, patientId);
                 pstmtBed.executeUpdate();
             }
-
+            
             String patientSql = "DELETE FROM patients WHERE patient_id = ?";
             try (PreparedStatement pstmtPatient = conn.prepareStatement(patientSql)) {
                 pstmtPatient.setInt(1, patientId);
                 int affectedRows = pstmtPatient.executeUpdate();
-                conn.commit();
+                
+                conn.commit(); 
                 return affectedRows > 0;
             }
 
         } catch (SQLException e) {
-            if (conn != null)
+            if (conn != null) {
                 conn.rollback();
-            throw e;
+            }
+            throw e; 
         } finally {
-            if (conn != null)
+            if (conn != null) {
                 conn.setAutoCommit(true);
+            }
         }
     }
 
     public List<Patient> getAllPatients() throws SQLException {
         List<Patient> patients = new ArrayList<>();
-        String sql = "SELECT p.*, d.name AS doctor_name, b.bed_id FROM patients p " +
+        String sql = "SELECT p.*, d.name as doctor_name, b.bed_id " +
+                "FROM patients p " +
                 "LEFT JOIN doctors d ON p.doctor_id = d.doctor_id " +
                 "LEFT JOIN beds b ON p.patient_id = b.patient_id " +
-                "WHERE p.discharged_date IS NULL ORDER BY p.patient_id";
+                "WHERE p.discharged_date IS NULL " +
+                "ORDER BY p.patient_id";
 
         try (Connection conn = DatabaseConnection.getConnection();
                 Statement stmt = conn.createStatement();
@@ -189,30 +199,12 @@ public class DataAccess {
         return patients;
     }
 
-    public List<Patient> getAdmittedPatients() throws SQLException {
-        List<Patient> patients = new ArrayList<>();
-        String sql = "SELECT * FROM patients WHERE discharged_date IS NULL";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                Patient patient = new Patient();
-                patient.setPatientId(rs.getInt("patient_id"));
-                patient.setName(rs.getString("name"));
-                patients.add(patient);
-            }
-        }
-        return patients;
-    }
-
     public Patient getPatientById(int patientId) throws SQLException {
         Patient patient = null;
-        // This query now joins with beds and gets all patient columns
         String sql = "SELECT p.*, b.price_per_day " +
-                "FROM patients p " +
-                "LEFT JOIN beds b ON p.patient_id = b.patient_id " +
-                "WHERE p.patient_id = ?";
+                     "FROM patients p " +
+                     "LEFT JOIN beds b ON p.patient_id = b.patient_id " +
+                     "WHERE p.patient_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
@@ -229,15 +221,65 @@ public class DataAccess {
                     patient.setAdmittedDate(rs.getDate("admitted_date"));
                     patient.setDoctorId(rs.getInt("doctor_id"));
                     patient.setRequestedBedType(rs.getString("requested_bed_type"));
-                    patient.setPricePerDay(rs.getDouble("price_per_day")); // Price from bed
+                    patient.setPricePerDay(rs.getDouble("price_per_day"));
                 }
             }
         }
         return patient;
     }
+    
+    public List<Patient> getAdmittedPatients() throws SQLException {
+        List<Patient> patients = new ArrayList<>();
+        String sql = "SELECT * FROM patients WHERE discharged_date IS NULL";
+        try (Connection conn = DatabaseConnection.getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Patient patient = new Patient();
+                patient.setPatientId(rs.getInt("patient_id"));
+                patient.setName(rs.getString("name"));
+                patients.add(patient);
+            }
+        }
+        return patients;
+    }
+
+
+    public List<Patient> getPatientsByDoctorId(int doctorId) throws SQLException {
+        List<Patient> patients = new ArrayList<>();
+        String sql = "SELECT p.patient_id, p.name, p.age, p.illness, p.disease_severity, b.bed_id " +
+                     "FROM patients p " +
+                     "LEFT JOIN beds b ON p.patient_id = b.patient_id " +
+                     "WHERE p.discharged_date IS NULL AND p.doctor_id = ? " +
+                     "ORDER BY p.name";
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, doctorId);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Patient patient = new Patient();
+                    patient.setPatientId(rs.getInt("patient_id"));
+                    patient.setName(rs.getString("name"));
+                    patient.setAge(rs.getInt("age"));
+                    patient.setIllness(rs.getString("illness"));
+                    patient.setDiseaseSeverity(rs.getString("disease_severity"));
+                    patient.setBedId(rs.getInt("bed_id"));
+                    patients.add(patient);
+                }
+            }
+        }
+        return patients;
+    }
 
     // ========== DOCTOR METHODS ==========
 
+    // [START] UPDATED METHOD: addDoctor
+    // This is now the simple, correct INSERT statement.
+    // The database will handle generating the ID.
     public boolean addDoctor(Doctor doctor) throws SQLException {
         String sql = "INSERT INTO doctors (name, specialization, phone, email, consultation_fee, available_days) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -254,6 +296,7 @@ public class DataAccess {
             return affectedRows > 0;
         }
     }
+    // [END] UPDATED METHOD: addDoctor
 
     public boolean updateDoctor(Doctor doctor) throws SQLException {
         String sql = "UPDATE doctors SET name = ?, specialization = ?, phone = ?, email = ?, consultation_fee = ?, available_days = ? WHERE doctor_id = ?";
@@ -272,7 +315,7 @@ public class DataAccess {
             return affectedRows > 0;
         }
     }
-
+    
     public boolean deleteDoctor(int doctorId) throws SQLException {
         String sql = "DELETE FROM doctors WHERE doctor_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -306,15 +349,17 @@ public class DataAccess {
         return doctors;
     }
 
+
     // ========== BED METHODS ==========
+    // (Unchanged)
 
     public List<Bed> getAllBeds() throws SQLException {
         List<Bed> beds = new ArrayList<>();
-        String sql = "SELECT b.*, p.name as patient_name FROM beds b LEFT JOIN patients p ON b.patient_id = p.patient_id ORDER BY b.bed_id";
+        String sql = "SELECT b.*, p.name as patient_name " +
+                "FROM beds b LEFT JOIN patients p ON b.patient_id = p.patient_id ORDER BY b.bed_id";
         try (Connection conn = DatabaseConnection.getConnection();
                 Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(sql)) {
-
             while (rs.next()) {
                 Bed bed = new Bed();
                 bed.setBedId(rs.getInt("bed_id"));
@@ -329,6 +374,18 @@ public class DataAccess {
             }
         }
         return beds;
+    }
+    
+    public Map<Integer, List<Bed>> getBedsGroupedByFloor() throws SQLException {
+        Map<Integer, List<Bed>> floorMap = new TreeMap<>();
+        List<Bed> allBeds = getAllBeds(); 
+        
+        for (Bed bed : allBeds) {
+            int floor = bed.getFloor();
+            floorMap.putIfAbsent(floor, new ArrayList<>());
+            floorMap.get(floor).add(bed);
+        }
+        return floorMap;
     }
 
     private boolean assignAvailableBed(int patientId, String bedType) throws SQLException {
@@ -364,7 +421,6 @@ public class DataAccess {
         try (Connection conn = DatabaseConnection.getConnection();
                 Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(sql)) {
-
             while (rs.next()) {
                 Bed bed = new Bed();
                 bed.setBedType(rs.getString("bed_type"));
@@ -375,8 +431,33 @@ public class DataAccess {
         return bedTypes;
     }
 
-    // ========== BILLING & DISCHARGE METHODS ==========
+    public Bed getBedByPatientId(int patientId) throws SQLException {
+        String sql = "SELECT * FROM beds WHERE patient_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, patientId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    Bed bed = new Bed();
+                    bed.setBedId(rs.getInt("bed_id"));
+                    bed.setWard(rs.getString("ward"));
+                    bed.setStatus(rs.getString("status"));
+                    bed.setPatientId(rs.getInt("patient_id"));
+                    bed.setFloor(rs.getInt("floor"));
+                    bed.setBedType(rs.getString("bed_type"));
+                    bed.setPricePerDay(rs.getDouble("price_per_day"));
+                    return bed;
+                }
+            }
+        }
+        return null;
+    }
+    
 
+    // ========== BILLING & DISCHARGE METHODS ==========
+    // (Unchanged)
+    
     public boolean dischargePatient(int patientId, Bill bill) throws SQLException {
         Connection conn = null;
         try {
@@ -411,18 +492,31 @@ public class DataAccess {
             return true;
 
         } catch (SQLException e) {
-            if (conn != null)
-                conn.rollback();
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
             throw e;
         } finally {
-            if (conn != null)
-                conn.setAutoCommit(true);
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
-
+    
     public List<Bill> getBillingHistory() throws SQLException {
         List<Bill> billingHistory = new ArrayList<>();
-        String sql = "SELECT b.*, p.name as patient_name FROM billing b JOIN patients p ON b.patient_id = p.patient_id ORDER BY b.bill_date DESC, b.bill_id DESC";
+        String sql = "SELECT b.*, p.name as patient_name FROM billing b " +
+                "JOIN patients p ON b.patient_id = p.patient_id " +
+                "ORDER BY b.bill_date DESC, b.bill_id DESC";
+
         try (Connection conn = DatabaseConnection.getConnection();
                 Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(sql)) {
@@ -442,72 +536,4 @@ public class DataAccess {
         }
         return billingHistory;
     }
-
-    public List<Patient> getPatientsByDoctorId(int doctorId) throws SQLException {
-        List<Patient> patients = new ArrayList<>();
-        // This query is for the Doctor Portal table
-        String sql = "SELECT p.patient_id, p.name, p.age, p.illness, p.disease_severity, b.bed_id " +
-                "FROM patients p " +
-                "LEFT JOIN beds b ON p.patient_id = b.patient_id " +
-                "WHERE p.discharged_date IS NULL AND p.doctor_id = ? " +
-                "ORDER BY p.name";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, doctorId);
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Patient patient = new Patient();
-                    patient.setPatientId(rs.getInt("patient_id"));
-                    patient.setName(rs.getString("name"));
-                    patient.setAge(rs.getInt("age"));
-                    patient.setIllness(rs.getString("illness"));
-                    patient.setDiseaseSeverity(rs.getString("disease_severity"));
-                    patient.setBedId(rs.getInt("bed_id"));
-                    patients.add(patient);
-                }
-            }
-        }
-        return patients;
-    }
-
-    public Bed getBedByPatientId(int patientId) throws SQLException {
-        String sql = "SELECT * FROM beds WHERE patient_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, patientId);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    Bed bed = new Bed();
-                    bed.setBedId(rs.getInt("bed_id"));
-                    bed.setWard(rs.getString("ward"));
-                    bed.setStatus(rs.getString("status"));
-                    bed.setPatientId(rs.getInt("patient_id"));
-                    bed.setFloor(rs.getInt("floor"));
-                    bed.setBedType(rs.getString("bed_type"));
-                    bed.setPricePerDay(rs.getDouble("price_per_day"));
-                    return bed;
-                }
-            }
-        }
-        return null; // No bed assigned
-    }
-
-    public Map<Integer, List<Bed>> getBedsGroupedByFloor() throws SQLException {
-        Map<Integer, List<Bed>> floorMap = new TreeMap<>();
-        List<Bed> allBeds = getAllBeds(); // Re-use the existing method
-
-        for (Bed bed : allBeds) {
-            int floor = bed.getFloor();
-            // If the map doesn't have this floor yet, create a new list
-            floorMap.putIfAbsent(floor, new ArrayList<>());
-            // Add the bed to its corresponding floor's list
-            floorMap.get(floor).add(bed);
-        }
-        return floorMap;
-    }
-
 }
