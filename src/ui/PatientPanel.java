@@ -1,12 +1,13 @@
 package ui;
 
 import dal.DataAccess;
-import model.Bed;
+import model.ConfigBedType;
+import model.ConfigIllness;
 import model.Doctor;
 import model.Patient;
 import javax.swing.*;
-// import javax.swing.event.ListSelectionEvent;
-// import javax.swing.event.ListSelectionListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
@@ -23,34 +24,22 @@ public class PatientPanel extends JPanel {
     private JComboBox<String> genderComboBox;
     private JComboBox<Doctor> doctorComboBox;
     
-    // UI Components for Illness and Severity
-    private JComboBox<String> illnessComboBox;
+    private JComboBox<ConfigIllness> illnessComboBox; 
     private JTextField otherIllnessField;
     private JComboBox<String> severityComboBox;
     private JLabel otherIllnessLabel;
     
-    private JComboBox<Bed> bedTypeComboBox; // Bed type dropdown
-    private JLabel bedTypeLabel;          // Label for bed type
+    private JComboBox<ConfigBedType> bedTypeComboBox; 
+    private JLabel bedTypeLabel;
     
-    // CRUD Buttons
-    private JButton registerButton;
-    private JButton updateButton;
-    private JButton deleteButton;
-    private JButton clearButton;
-    
+    private JButton registerButton, updateButton, deleteButton, clearButton;
     private JTable patientTable;
     private DefaultTableModel tableModel;
     private JLabel countLabel;
     
     private int selectedPatientId = -1;
-    
-    private List<Patient> patientList; // Holds the full list of patient objects
-
-    private final String[] COMMON_ILLNESSES = {
-        "Fever", "Flu (Influenza)", "Pneumonia", "Bronchitis",
-        "Appendicitis", "Gallstones", "Kidney Stones",
-        "Heart Attack", "Stroke", "Diabetes Management", "Other..."
-    };
+    private List<Patient> patientList;
+    private ConfigIllness otherIllnessOption; // To store the "Other..." object
 
     public PatientPanel() {
         setLayout(new BorderLayout(15, 15));
@@ -63,9 +52,12 @@ public class PatientPanel extends JPanel {
         JSplitPane splitPane = createSplitPane();
         add(splitPane, BorderLayout.CENTER);
 
+        // Load all dropdown data
         loadDoctors();
-        loadBedTypes(); // Load bed types on init
-        loadPatients();
+        loadBedTypes();
+        loadIllnesses(); // This sets otherIllnessOption
+        loadPatients();  // This USES otherIllnessOption
+        
         clearForm();
     }
 
@@ -98,16 +90,8 @@ public class PatientPanel extends JPanel {
 
     private JPanel createFormPanel() {
         JPanel formPanel = new JPanel(new GridBagLayout());
-        formPanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(60, 179, 113), 2),
-            "Patient Registration",
-            javax.swing.border.TitledBorder.LEFT,
-            javax.swing.border.TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 12),
-            new Color(60, 179, 113)
-        ));
+        formPanel.setBorder(BorderFactory.createTitledBorder("Patient Registration"));
         formPanel.setBackground(Color.WHITE);
-
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -116,32 +100,24 @@ public class PatientPanel extends JPanel {
         // --- Row 0: Name ---
         gbc.gridx = 0; gbc.gridy = 0;
         formPanel.add(createStyledLabel("Name:*"), gbc);
-        gbc.gridx = 1;
-        nameField = createStyledTextField();
-        formPanel.add(nameField, gbc);
-
+        gbc.gridx = 1; nameField = createStyledTextField(); formPanel.add(nameField, gbc);
+        
         // --- Row 1: Age ---
         gbc.gridx = 0; gbc.gridy = 1;
         formPanel.add(createStyledLabel("Age:*"), gbc);
-        gbc.gridx = 1;
-        ageField = createStyledTextField();
-        formPanel.add(ageField, gbc);
-
+        gbc.gridx = 1; ageField = createStyledTextField(); formPanel.add(ageField, gbc);
+        
         // --- Row 2: Gender ---
         gbc.gridx = 0; gbc.gridy = 2;
         formPanel.add(createStyledLabel("Gender:*"), gbc);
-        gbc.gridx = 1;
-        genderComboBox = new JComboBox<>(new String[]{"Male", "Female", "Other"});
-        genderComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        genderComboBox.setBackground(Color.WHITE);
-        formPanel.add(genderComboBox, gbc);
+        gbc.gridx = 1; genderComboBox = new JComboBox<>(new String[]{"Male", "Female", "Other"});
+        genderComboBox.setBackground(Color.WHITE); formPanel.add(genderComboBox, gbc);
 
-        // --- Row 3: Illness Dropdown ---
+        // --- Row 3: Illness Dropdown (Now DB-driven) ---
         gbc.gridx = 0; gbc.gridy = 3;
         formPanel.add(createStyledLabel("Illness:*"), gbc);
         gbc.gridx = 1;
-        illnessComboBox = new JComboBox<>(COMMON_ILLNESSES);
-        illnessComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        illnessComboBox = new JComboBox<>();
         illnessComboBox.setBackground(Color.WHITE);
         formPanel.add(illnessComboBox, gbc);
         
@@ -154,8 +130,9 @@ public class PatientPanel extends JPanel {
         formPanel.add(otherIllnessField, gbc);
         
         illnessComboBox.addItemListener(e -> {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                boolean isOther = "Other...".equals(e.getItem());
+            if (e.getStateChange() == ItemEvent.SELECTED && e.getItem() != null) {
+                // Check the name of the object
+                boolean isOther = "Other...".equals(((ConfigIllness)e.getItem()).getIllnessName());
                 otherIllnessLabel.setVisible(isOther);
                 otherIllnessField.setVisible(isOther);
             }
@@ -166,23 +143,18 @@ public class PatientPanel extends JPanel {
         formPanel.add(createStyledLabel("Severity:*"), gbc);
         gbc.gridx = 1;
         severityComboBox = new JComboBox<>(new String[]{"Mild", "Moderate", "Severe"});
-        severityComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         severityComboBox.setBackground(Color.WHITE);
         formPanel.add(severityComboBox, gbc);
         
-        // --- Row 6: Bed Type Dropdown (NEW) ---
+        // --- Row 6: Bed Type Dropdown (Now DB-driven) ---
         gbc.gridx = 0; gbc.gridy = 6;
         bedTypeLabel = createStyledLabel("Requested Bed Type:*");
         formPanel.add(bedTypeLabel, gbc);
         gbc.gridx = 1;
         bedTypeComboBox = new JComboBox<>();
-        bedTypeComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         bedTypeComboBox.setBackground(Color.WHITE);
-        // Add custom renderer to show price
-        bedTypeComboBox.setRenderer(new BedTypeRenderer());
         formPanel.add(bedTypeComboBox, gbc);
         
-        // Add item listener to enable/disable bed type based on severity
         severityComboBox.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
                 boolean needsBed = !"Mild".equals(e.getItem());
@@ -196,7 +168,6 @@ public class PatientPanel extends JPanel {
         formPanel.add(createStyledLabel("Assign Doctor:*"), gbc);
         gbc.gridx = 1;
         doctorComboBox = new JComboBox<>();
-        doctorComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         doctorComboBox.setBackground(Color.WHITE);
         formPanel.add(doctorComboBox, gbc);
 
@@ -205,21 +176,19 @@ public class PatientPanel extends JPanel {
         buttonPanel.setBackground(Color.WHITE);
         registerButton = createStyledButton("REGISTER NEW", new Color(60, 179, 113));
         registerButton.addActionListener(e -> registerPatient());
-        buttonPanel.add(registerButton);
         updateButton = createStyledButton("UPDATE SELECTED", new Color(255, 140, 0));
         updateButton.addActionListener(e -> updatePatient());
-        buttonPanel.add(updateButton);
         deleteButton = createStyledButton("DELETE SELECTED", new Color(220, 53, 69));
         deleteButton.addActionListener(e -> deletePatient());
-        buttonPanel.add(deleteButton);
         clearButton = createStyledButton("CLEAR FORM", new Color(108, 117, 125));
         clearButton.addActionListener(e -> clearForm());
+        buttonPanel.add(registerButton);
+        buttonPanel.add(updateButton);
+        buttonPanel.add(deleteButton);
         buttonPanel.add(clearButton);
         
-        gbc.gridx = 0; gbc.gridy = 8; // Updated gridy
-        gbc.gridwidth = 2;
-        gbc.anchor = GridBagConstraints.EAST;
-        gbc.fill = GridBagConstraints.NONE;
+        gbc.gridx = 0; gbc.gridy = 8;
+        gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.EAST; gbc.fill = GridBagConstraints.NONE;
         formPanel.add(buttonPanel, gbc);
 
         return formPanel;
@@ -227,15 +196,12 @@ public class PatientPanel extends JPanel {
 
     private JPanel createTablePanel() {
         JPanel tablePanel = new JPanel(new BorderLayout(10, 10));
-        tablePanel.setBorder(BorderFactory.createTitledBorder("Admitted Patients (Double-click for details)")); // Updated title
+        tablePanel.setBorder(BorderFactory.createTitledBorder("Admitted Patients (Double-click for details)"));
         tablePanel.setBackground(Color.WHITE);
 
         String[] columnNames = {"ID", "Name", "Age", "Gender", "Illness", "Severity", "Bed Request", "Admitted Date", "Assigned Doctor", "Bed ID"};
         tableModel = new DefaultTableModel(columnNames, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
+            @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         
         patientTable = new JTable(tableModel);
@@ -247,36 +213,31 @@ public class PatientPanel extends JPanel {
         header.setBackground(new Color(60, 179, 113));
         header.setForeground(Color.WHITE);
         header.setFont(new Font("Segoe UI", Font.BOLD, 12));
-
+        
         JScrollPane scrollPane = new JScrollPane(patientTable);
         scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
         tablePanel.add(scrollPane, BorderLayout.CENTER);
         
-        // Single-click listener to populate form for editing
         patientTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && patientTable.getSelectedRow() != -1) {
                 populateFormFromTable();
             }
         });
         
-        // Double-click listener to open read-only details
         patientTable.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    openPatientDetails();
-                }
+                if (e.getClickCount() == 2) openPatientDetails();
             }
         });
 
-        // Refresh button
         JButton refreshButton = createStyledButton("REFRESH LIST", new Color(60, 179, 113));
         refreshButton.addActionListener(e -> {
             loadDoctors();
-            loadBedTypes(); // Refresh bed types
+            loadBedTypes();
+            loadIllnesses();
             loadPatients();
             clearForm();
         });
-        
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(Color.WHITE);
         buttonPanel.add(refreshButton);
@@ -285,61 +246,34 @@ public class PatientPanel extends JPanel {
         return tablePanel;
     }
     
+    // [START] UPDATED METHOD
     private void populateFormFromTable() {
         int selectedRow = patientTable.convertRowIndexToModel(patientTable.getSelectedRow());
         if (selectedRow == -1) return;
 
-        // Get the full patient object from our list
         Patient patient = patientList.get(selectedRow);
-        
         selectedPatientId = patient.getPatientId();
 
-        // Populate simple fields
         nameField.setText(patient.getName());
         ageField.setText(String.valueOf(patient.getAge()));
         genderComboBox.setSelectedItem(patient.getGender());
         severityComboBox.setSelectedItem(patient.getDiseaseSeverity());
         
-        // Show/hide bed fields based on severity
         boolean needsBed = !"Mild".equals(patient.getDiseaseSeverity());
         bedTypeLabel.setVisible(needsBed);
         bedTypeComboBox.setVisible(needsBed);
         
-        // Find and select the correct bed type
-        for (int i = 0; i < bedTypeComboBox.getItemCount(); i++) {
-            Bed bed = bedTypeComboBox.getItemAt(i);
-            if (bed.getBedType().equals(patient.getRequestedBedType())) {
-                bedTypeComboBox.setSelectedIndex(i);
-                break;
-            }
-        }
-
-        // Find and select the correct doctor
-        for (int i = 0; i < doctorComboBox.getItemCount(); i++) {
-            Doctor doctor = doctorComboBox.getItemAt(i);
-            if (doctor.getDoctorId() == patient.getDoctorId()) {
-                doctorComboBox.setSelectedIndex(i);
-                break;
-            }
-        }
+        selectComboBoxItem(bedTypeComboBox, patient.getRequestedBedTypeId());
+        selectComboBoxItem(doctorComboBox, patient.getDoctorId());
         
-        // Set illness combo box (or "Other" field)
-        String illness = patient.getIllness();
-        boolean foundInDropdown = false;
-        for (int i = 0; i < illnessComboBox.getItemCount(); i++) {
-            if (illnessComboBox.getItemAt(i).equals(illness)) {
-                illnessComboBox.setSelectedIndex(i);
-                foundInDropdown = true;
-                break;
-            }
-        }
-        
-        if (!foundInDropdown) {
-            illnessComboBox.setSelectedItem("Other...");
-            otherIllnessField.setText(illness);
+        // [FIX #1] Added a null check for otherIllnessOption
+        if (otherIllnessOption != null && patient.getIllnessId() == otherIllnessOption.getIllnessId()) {
+            illnessComboBox.setSelectedItem(otherIllnessOption);
+            otherIllnessField.setText(patient.getOtherIllnessText());
             otherIllnessLabel.setVisible(true);
             otherIllnessField.setVisible(true);
         } else {
+            selectComboBoxItem(illnessComboBox, patient.getIllnessId());
             otherIllnessField.setText("");
             otherIllnessLabel.setVisible(false);
             otherIllnessField.setVisible(false);
@@ -348,6 +282,22 @@ public class PatientPanel extends JPanel {
         registerButton.setEnabled(false);
         updateButton.setEnabled(true);
         deleteButton.setEnabled(true);
+    }
+    // [END] UPDATED METHOD
+    
+    private void selectComboBoxItem(JComboBox<?> comboBox, int id) {
+        for (int i = 0; i < comboBox.getItemCount(); i++) {
+            Object item = comboBox.getItemAt(i);
+            int itemId = -1;
+            if (item instanceof Doctor) itemId = ((Doctor) item).getDoctorId();
+            else if (item instanceof ConfigBedType) itemId = ((ConfigBedType) item).getBedTypeId();
+            else if (item instanceof ConfigIllness) itemId = ((ConfigIllness) item).getIllnessId();
+            
+            if (itemId == id) {
+                comboBox.setSelectedIndex(i);
+                return;
+            }
+        }
     }
 
     private JLabel createStyledLabel(String text) {
@@ -388,52 +338,60 @@ public class PatientPanel extends JPanel {
 
     public void loadDoctors() {
         try {
-            Doctor selectedDoctor = (Doctor) doctorComboBox.getSelectedItem();
+            Object selected = doctorComboBox.getSelectedItem();
             doctorComboBox.removeAllItems();
-            List<Doctor> doctors = dataAccess.getAllDoctors();
-            for (Doctor doctor : doctors) {
-                doctorComboBox.addItem(doctor);
-            }
-            if (selectedDoctor != null) {
-                for (int i = 0; i < doctorComboBox.getItemCount(); i++) {
-                    if (doctorComboBox.getItemAt(i).getDoctorId() == selectedDoctor.getDoctorId()) {
-                        doctorComboBox.setSelectedIndex(i);
-                        break;
-                    }
-                }
-            }
+            dataAccess.getAllDoctors().forEach(doctorComboBox::addItem);
+            if (selected != null) doctorComboBox.setSelectedItem(selected);
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error loading doctors: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            showError("Could not load Doctors: " + e.getMessage());
         }
     }
     
     public void loadBedTypes() {
         try {
+            Object selected = bedTypeComboBox.getSelectedItem();
             bedTypeComboBox.removeAllItems();
-            List<Bed> bedTypes = dataAccess.getBedTypes();
-            for (Bed bed : bedTypes) {
-                bedTypeComboBox.addItem(bed);
-            }
+            dataAccess.getAllBedTypes().forEach(bedTypeComboBox::addItem);
+            if (selected != null) bedTypeComboBox.setSelectedItem(selected);
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error loading bed types: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            showError("Could not load Bed Types: " + e.getMessage());
         }
     }
     
+    public void loadIllnesses() {
+        try {
+            Object selected = illnessComboBox.getSelectedItem();
+            illnessComboBox.removeAllItems();
+            List<ConfigIllness> illnesses = dataAccess.getAllIllnesses();
+            for (ConfigIllness illness : illnesses) {
+                illnessComboBox.addItem(illness);
+                if ("Other...".equals(illness.getIllnessName())) {
+                    otherIllnessOption = illness; // Store this special object
+                }
+            }
+            if (selected != null) illnessComboBox.setSelectedItem(selected);
+        } catch (SQLException e) {
+            showError("Could not load Illnesses: " + e.getMessage());
+        }
+    }
+    
+    // [START] UPDATED METHOD
     public void loadPatients() {
         try {
             tableModel.setRowCount(0);
-            // Store the list
             this.patientList = dataAccess.getAllPatients();
             
             for (Patient p : patientList) {
                 Object[] row = {
-                    p.getPatientId(),
-                    p.getName(),
-                    p.getAge(),
-                    p.getGender(),
-                    p.getIllness(),
+                    p.getPatientId(), p.getName(), p.getAge(), p.getGender(),
+                    
+                    // [FIX #2] Added a null check for otherIllnessOption
+                    (otherIllnessOption != null && p.getIllnessId() == otherIllnessOption.getIllnessId()) 
+                        ? p.getOtherIllnessText() 
+                        : p.getIllnessName(),
+                        
                     p.getDiseaseSeverity(),
-                    p.getRequestedBedType() != null ? p.getRequestedBedType() : "N/A",
+                    p.getRequestedBedTypeName() != null ? p.getRequestedBedTypeName() : "N/A",
                     p.getAdmittedDate().toString(),
                     p.getAssignedDoctorName() != null ? p.getAssignedDoctorName() : "N/A",
                     p.getBedId() == 0 ? "Unassigned" : p.getBedId()
@@ -442,20 +400,16 @@ public class PatientPanel extends JPanel {
             }
             countLabel.setText("Admitted Patients: " + patientList.size());
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error loading patients: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            showError("Error loading patients: " + e.getMessage());
         }
     }
+    // [END] UPDATED METHOD
     
     private void openPatientDetails() {
         int selectedViewRow = patientTable.getSelectedRow();
         if (selectedViewRow == -1) return;
-        
         int modelRow = patientTable.convertRowIndexToModel(selectedViewRow);
-        
-        // Get the full patient object
         Patient selectedPatient = patientList.get(modelRow);
-        
-        // Open the dialog
         PatientDetailDialog dialog = new PatientDetailDialog((Frame) SwingUtilities.getWindowAncestor(this), selectedPatient);
         dialog.setVisible(true);
     }
@@ -469,15 +423,9 @@ public class PatientPanel extends JPanel {
         otherIllnessField.setText("");
         otherIllnessField.setVisible(false);
         otherIllnessLabel.setVisible(false);
+        if (doctorComboBox.getItemCount() > 0) doctorComboBox.setSelectedIndex(0);
+        if (bedTypeComboBox.getItemCount() > 0) bedTypeComboBox.setSelectedIndex(0);
         
-        if (doctorComboBox.getItemCount() > 0) {
-            doctorComboBox.setSelectedIndex(0);
-        }
-        if (bedTypeComboBox.getItemCount() > 0) {
-            bedTypeComboBox.setSelectedIndex(0);
-        }
-        
-        // "Mild" severity hides bed fields by default
         bedTypeLabel.setVisible(false);
         bedTypeComboBox.setVisible(false);
         
@@ -491,33 +439,26 @@ public class PatientPanel extends JPanel {
     
     private boolean validateFields() {
         if (nameField.getText().trim().isEmpty() || ageField.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Patient Name and Age cannot be empty.", "Input Error", JOptionPane.WARNING_MESSAGE);
-            return false;
+            showError("Patient Name and Age cannot be empty."); return false;
         }
-        
         try {
             Integer.parseInt(ageField.getText().trim());
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid number for age.", "Input Error", JOptionPane.ERROR_MESSAGE);
-            return false;
+            showError("Please enter a valid number for age."); return false;
         }
-        
-        if ("Other...".equals(illnessComboBox.getSelectedItem()) && otherIllnessField.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please specify the illness.", "Input Error", JOptionPane.WARNING_MESSAGE);
-            return false;
+        ConfigIllness selectedIllness = (ConfigIllness) illnessComboBox.getSelectedItem();
+        if (selectedIllness == null) {
+            showError("Please configure illnesses in the Admin panel."); return false;
         }
-        
+        if ("Other...".equals(selectedIllness.getIllnessName()) && otherIllnessField.getText().trim().isEmpty()) {
+            showError("Please specify the illness."); return false;
+        }
         if (doctorComboBox.getSelectedItem() == null) {
-            JOptionPane.showMessageDialog(this, "Please add a doctor first.", "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
+            showError("Please add a doctor first."); return false;
         }
-        
-        // Check bed type only if a bed is needed
         if (!"Mild".equals(severityComboBox.getSelectedItem()) && bedTypeComboBox.getSelectedItem() == null) {
-            JOptionPane.showMessageDialog(this, "Please add bed types to the database.", "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
+            showError("Please configure bed types in the Admin panel."); return false;
         }
-        
         return true;
     }
 
@@ -528,119 +469,87 @@ public class PatientPanel extends JPanel {
         patient.setGender((String) genderComboBox.getSelectedItem());
         patient.setDoctorId(((Doctor) doctorComboBox.getSelectedItem()).getDoctorId());
         
-        String illness;
-        String selectedIllness = (String) illnessComboBox.getSelectedItem();
-        if ("Other...".equals(selectedIllness)) {
-            illness = otherIllnessField.getText().trim();
+        ConfigIllness selectedIllness = (ConfigIllness) illnessComboBox.getSelectedItem();
+        patient.setIllnessId(selectedIllness.getIllnessId());
+        if ("Other...".equals(selectedIllness.getIllnessName())) {
+            patient.setOtherIllnessText(otherIllnessField.getText().trim());
         } else {
-            illness = selectedIllness;
+            patient.setOtherIllnessText(null);
         }
-        patient.setIllness(illness);
         
         String severity = (String) severityComboBox.getSelectedItem();
         patient.setDiseaseSeverity(severity);
         
-        // Get bed request
         if (!"Mild".equals(severity) && bedTypeComboBox.getSelectedItem() != null) {
-            patient.setRequestedBedType(((Bed) bedTypeComboBox.getSelectedItem()).getBedType());
+            patient.setRequestedBedTypeId(((ConfigBedType) bedTypeComboBox.getSelectedItem()).getBedTypeId());
         } else {
-            patient.setRequestedBedType(null); // No bed requested
+            patient.setRequestedBedTypeId(0); // 0 or null
         }
-        
         return patient;
     }
 
     private void registerPatient() {
-        if (!validateFields()) {
-            return;
-        }
-        
+        if (!validateFields()) return;
         try {
             Patient patient = getPatientFromForm();
-            patient.setAdmittedDate(new Date()); // Set admission date on registration
-
+            patient.setAdmittedDate(new Date());
             if (dataAccess.addPatient(patient)) {
                 JOptionPane.showMessageDialog(this, "Patient registered successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                 loadPatients();
                 clearForm();
             } else {
-                JOptionPane.showMessageDialog(this, "Failed to register patient. A bed of the requested type may not be available.", "Registration Error", JOptionPane.WARNING_MESSAGE);
+                showError("Failed to register patient. A bed of the requested type may not be available.");
             }
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Database error on registration: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            showError("Database error on registration: " + e.getMessage());
         }
     }
     
     private void updatePatient() {
         if (selectedPatientId == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a patient from the table to update.", "No Selection", JOptionPane.WARNING_MESSAGE);
-            return;
+            showError("Please select a patient from the table to update."); return;
         }
-        
-        if (!validateFields()) {
-            return;
-        }
-        
+        if (!validateFields()) return;
         try {
             Patient patient = getPatientFromForm();
-            patient.setPatientId(selectedPatientId); // Set the ID for the WHERE clause
-
+            patient.setPatientId(selectedPatientId);
             if (dataAccess.updatePatient(patient)) {
                 JOptionPane.showMessageDialog(this, "Patient updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                 loadPatients();
                 clearForm();
             } else {
-                JOptionPane.showMessageDialog(this, "Failed to update patient.", "Error", JOptionPane.ERROR_MESSAGE);
+                showError("Failed to update patient.");
             }
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Database error updating patient: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            showError("Database error updating patient: " + e.getMessage());
         }
     }
     
     private void deletePatient() {
         if (selectedPatientId == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a patient from the table to delete.", "No Selection", JOptionPane.WARNING_MESSAGE);
-            return;
+            showError("Please select a patient from the table to delete."); return;
         }
-
         int choice = JOptionPane.showConfirmDialog(this,
                 "Are you sure you want to delete " + nameField.getText() + "?\n" +
                 "This will also free their bed. This action cannot be undone.",
                 "Confirm Deletion",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
-
-        if (choice == JOptionPane.YES_OPTION) {
-            try {
-                if (dataAccess.deletePatient(selectedPatientId)) {
-                    JOptionPane.showMessageDialog(this, "Patient deleted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    loadPatients();
-                    clearForm();
-                } else {
-                    JOptionPane.showMessageDialog(this, "Failed to delete patient.", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-            } catch (SQLException e) {
-                JOptionPane.showMessageDialog(this,
-                        "Could not delete patient. They may have billing records.\n" +
-                        "Please discharge the patient via the Billing panel instead.",
-                        "Database Error",
-                        JOptionPane.ERROR_MESSAGE);
-            }
+        if (choice != JOptionPane.YES_OPTION) return;
+        
+        try {
+            // We must call the version of deletePatient that handles transactions
+            dataAccess.deletePatient(selectedPatientId); 
+            JOptionPane.showMessageDialog(this, "Patient deleted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            loadPatients();
+            clearForm();
+        } catch (SQLException e) {
+            showError("Could not delete patient. They may have billing records.\n" +
+                      "Please discharge the patient via the Billing panel instead.");
         }
     }
     
-    // Custom renderer for the Bed Type JComboBox
-    class BedTypeRenderer extends DefaultListCellRenderer {
-        @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            if (value instanceof Bed) {
-                Bed bed = (Bed) value;
-                setText(String.format("%s (₹%.2f/day)", bed.getBedType(), bed.getPricePerDay()));
-            } else {
-                setText("Select Bed Type");
-            }
-            return this;
-        }
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
 }

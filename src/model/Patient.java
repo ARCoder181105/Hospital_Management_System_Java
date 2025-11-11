@@ -7,17 +7,22 @@ public class Patient {
     private String name;
     private int age;
     private String gender;
-    private String illness;
-    private String diseaseSeverity;
     private Date admittedDate;
     private int doctorId;
-    private String assignedDoctorName;
-    private int bedId;
+    private String diseaseSeverity;
+    private int bedId; // This is the assigned bed, fetched with a join
+
+    // [START] MODIFICATIONS
+    private int illnessId; // Changed from String
+    private String otherIllnessText; // New field for "Other"
+    private int requestedBedTypeId; // Changed from String
     
-    // [START] NEW FIELDS
-    private String requestedBedType; // Stores the patient's request
-    private double pricePerDay;      // Transient field for billing
-    // [END] NEW FIELDS
+    // Transient fields (for joins)
+    private String assignedDoctorName;
+    private String illnessName;
+    private String requestedBedTypeName;
+    private double pricePerDay;
+    // [END] MODIFICATIONS
 
     @Override
     public String toString() {
@@ -32,23 +37,31 @@ public class Patient {
     public void setAge(int age) { this.age = age; }
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
-    public String getIllness() { return illness; }
-    public void setIllness(String illness) { this.illness = illness; }
-    public String getDiseaseSeverity() { return diseaseSeverity; }
-    public void setDiseaseSeverity(String diseaseSeverity) { this.diseaseSeverity = diseaseSeverity; }
     public Date getAdmittedDate() { return admittedDate; }
     public void setAdmittedDate(Date admittedDate) { this.admittedDate = admittedDate; }
     public int getDoctorId() { return doctorId; }
     public void setDoctorId(int doctorId) { this.doctorId = doctorId; }
-    public String getAssignedDoctorName() { return assignedDoctorName; }
-    public void setAssignedDoctorName(String assignedDoctorName) { this.assignedDoctorName = assignedDoctorName; }
+    public String getDiseaseSeverity() { return diseaseSeverity; }
+    public void setDiseaseSeverity(String diseaseSeverity) { this.diseaseSeverity = diseaseSeverity; }
     public int getBedId() { return bedId; }
     public void setBedId(int bedId) { this.bedId = bedId; }
 
-    // [START] NEW GETTERS/SETTERS
-    public String getRequestedBedType() { return requestedBedType; }
-    public void setRequestedBedType(String requestedBedType) { this.requestedBedType = requestedBedType; }
+    // [START] MODIFIED/NEW GETTERS/SETTERS
+    public int getIllnessId() { return illnessId; }
+    public void setIllnessId(int illnessId) { this.illnessId = illnessId; }
+    public String getOtherIllnessText() { return otherIllnessText; }
+    public void setOtherIllnessText(String otherIllnessText) { this.otherIllnessText = otherIllnessText; }
+    public int getRequestedBedTypeId() { return requestedBedTypeId; }
+    public void setRequestedBedTypeId(int requestedBedTypeId) { this.requestedBedTypeId = requestedBedTypeId; }
+    
+    // Transient fields
+    public String getAssignedDoctorName() { return assignedDoctorName; }
+    public void setAssignedDoctorName(String assignedDoctorName) { this.assignedDoctorName = assignedDoctorName; }
+    public String getIllnessName() { return illnessName; }
+    public void setIllnessName(String illnessName) { this.illnessName = illnessName; }
+    public String getRequestedBedTypeName() { return requestedBedTypeName; }
+    public void setRequestedBedTypeName(String requestedBedTypeName) { this.requestedBedTypeName = requestedBedTypeName; }
     public double getPricePerDay() { return pricePerDay; }
     public void setPricePerDay(double pricePerDay) { this.pricePerDay = pricePerDay; }
-    // [END] NEW GETTERS/SETTERS
+    // [END] MODIFIED/NEW GETTERS/SETTERS
 }

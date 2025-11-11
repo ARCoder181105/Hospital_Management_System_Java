@@ -12,7 +12,6 @@ public class BedManagementPanel extends JPanel {
     private final DataAccess dataAccess = new DataAccess();
     private JLabel countLabel;
     private int totalBeds = 0;
-    
     private JPanel mainContentPanel;
     private JScrollPane scrollPane;
 
@@ -21,52 +20,56 @@ public class BedManagementPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         setBackground(new Color(245, 245, 245));
 
+        // --- Header ---
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
 
+        // --- Main Content ---
         mainContentPanel = new JPanel();
         mainContentPanel.setLayout(new BoxLayout(mainContentPanel, BoxLayout.Y_AXIS));
         mainContentPanel.setBackground(Color.WHITE);
-        
+
         scrollPane = new JScrollPane(mainContentPanel);
         scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        
-        // This makes the scroll speed reasonable
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        
         add(scrollPane, BorderLayout.CENTER);
 
+        // --- Bottom Panel ---
         JPanel bottomPanel = createBottomPanel();
         add(bottomPanel, BorderLayout.SOUTH);
 
+        // Load initial layout
         refreshBedLayout();
     }
 
     private JPanel createHeaderPanel() {
         JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(165, 42, 42));
+        headerPanel.setBackground(new Color(165, 42, 42)); // Maroon header
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+
         JLabel titleLabel = new JLabel("BED MANAGEMENT");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(Color.WHITE);
         headerPanel.add(titleLabel, BorderLayout.WEST);
+
         countLabel = new JLabel("Total Beds: 0 (Available: 0 | Occupied: 0)");
         countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         countLabel.setForeground(Color.WHITE);
         headerPanel.add(countLabel, BorderLayout.EAST);
+
         return headerPanel;
     }
 
     private JPanel createBottomPanel() {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         bottomPanel.setBackground(Color.WHITE);
-        
+
         JButton refreshButton = createStyledButton("REFRESH STATUS", new Color(165, 42, 42));
         refreshButton.addActionListener(e -> refreshBedLayout());
         bottomPanel.add(refreshButton);
-        
+
         return bottomPanel;
     }
 
@@ -88,6 +91,10 @@ public class BedManagementPanel extends JPanel {
         return button;
     }
 
+    /**
+     * Refreshes the bed layout grouped by floor and updates statistics.
+     * Uses the latest DataAccess.getBedsGroupedByFloor() method.
+     */
     public void refreshBedLayout() {
         mainContentPanel.removeAll();
         totalBeds = 0;
@@ -101,43 +108,41 @@ public class BedManagementPanel extends JPanel {
                 int floorNumber = entry.getKey();
                 List<Bed> bedsOnFloor = entry.getValue();
 
-                // [START] THE FIX
-                // Use WrapLayout instead of FlowLayout
                 JPanel floorPanel = new JPanel(new WrapLayout(WrapLayout.LEFT, 10, 10));
-                // [END] THE FIX
-                
                 floorPanel.setBackground(Color.WHITE);
                 floorPanel.setBorder(BorderFactory.createTitledBorder(
-                    BorderFactory.createLineBorder(Color.LIGHT_GRAY),
-                    "Floor " + floorNumber,
-                    javax.swing.border.TitledBorder.LEFT,
-                    javax.swing.border.TitledBorder.TOP,
-                    new Font("Segoe UI", Font.BOLD, 16),
-                    Color.DARK_GRAY
+                        BorderFactory.createLineBorder(Color.LIGHT_GRAY),
+                        "Floor " + floorNumber,
+                        javax.swing.border.TitledBorder.LEFT,
+                        javax.swing.border.TitledBorder.TOP,
+                        new Font("Segoe UI", Font.BOLD, 16),
+                        Color.DARK_GRAY
                 ));
-                
+
                 for (Bed bed : bedsOnFloor) {
+                    // Each BedBlock shows joined data: ID, Type, Patient, etc.
                     floorPanel.add(new BedBlock(bed));
                     totalBeds++;
-                    if ("Available".equals(bed.getStatus())) {
+                    if ("Available".equalsIgnoreCase(bed.getStatus())) {
                         availableBeds++;
                     } else {
                         occupiedBeds++;
                     }
                 }
-                
+
                 mainContentPanel.add(floorPanel);
                 mainContentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
             }
-            
+
             countLabel.setText(String.format(
-                "Total Beds: %d (Available: %d | Occupied: %d)",
-                totalBeds, availableBeds, occupiedBeds
+                    "Total Beds: %d (Available: %d | Occupied: %d)",
+                    totalBeds, availableBeds, occupiedBeds
             ));
 
         } catch (SQLException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading bed data: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error loading bed data: " + e.getMessage(),
+                    "Database Error", JOptionPane.ERROR_MESSAGE);
         }
 
         mainContentPanel.revalidate();

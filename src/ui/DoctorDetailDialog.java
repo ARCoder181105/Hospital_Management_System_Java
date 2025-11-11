@@ -54,7 +54,6 @@ public class DoctorDetailDialog extends JDialog {
         add(buttonPanel, BorderLayout.SOUTH);
     }
 
-    // [START] UPDATED METHOD: createDetailsPanel
     private JPanel createDetailsPanel(Doctor doctor) {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
@@ -71,7 +70,6 @@ public class DoctorDetailDialog extends JDialog {
         
         return panel;
     }
-    // [END] UPDATED METHOD: createDetailsPanel
 
     private void addDetailRow(JPanel panel, GridBagConstraints gbc, int y, String label, String value) {
         gbc.gridy = y;
@@ -91,8 +89,8 @@ public class DoctorDetailDialog extends JDialog {
         panel.add(val, gbc);
     }
     
+    // [START] UPDATED METHOD
     private JPanel createPatientListPanel(Doctor doctor) {
-        // ... (unchanged) ...
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createTitledBorder("Assigned Patients (Active)"));
@@ -105,7 +103,13 @@ public class DoctorDetailDialog extends JDialog {
                 listModel.addElement("No active patients assigned.");
             } else {
                 for (Patient p : patients) {
-                    listModel.addElement(p.getName() + " (ID: " + p.getPatientId() + ") - " + p.getIllness());
+                    
+                    // [FIX] Use the new methods to get the correct illness name
+                    String illnessDisplay = (p.getOtherIllnessText() != null && !p.getOtherIllnessText().isEmpty()) 
+                                            ? p.getOtherIllnessText() 
+                                            : p.getIllnessName();
+                    
+                    listModel.addElement(p.getName() + " (ID: " + p.getPatientId() + ") - " + illnessDisplay);
                 }
             }
         } catch (SQLException e) {
@@ -115,4 +119,5 @@ public class DoctorDetailDialog extends JDialog {
         panel.add(new JScrollPane(patientList), BorderLayout.CENTER);
         return panel;
     }
+    // [END] UPDATED METHOD
 }

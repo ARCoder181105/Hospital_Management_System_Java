@@ -4,19 +4,18 @@ import dal.DataAccess;
 import model.Employee;
 import model.Patient;
 import model.Bed;
+import model.Appointment;
 import javax.swing.*;
-// import javax.swing.event.ListSelectionEvent;
-// import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 public class DoctorPortalPanel extends JPanel {
-
     private final DataAccess dataAccess = new DataAccess();
     private final Employee currentDoctor;
 
@@ -35,6 +34,10 @@ public class DoctorPortalPanel extends JPanel {
     private JLabel detailBedLabel;
     private JLabel detailAdmittedLabel;
 
+    // Components for appointments
+    private JList<String> appointmentList;
+    private DefaultListModel<String> appointmentListModel;
+
     public DoctorPortalPanel(Employee doctor) {
         this.currentDoctor = doctor;
         setLayout(new BorderLayout(15, 15));
@@ -42,19 +45,19 @@ public class DoctorPortalPanel extends JPanel {
         setBackground(new Color(245, 245, 245));
 
         // Header
-        JPanel headerPanel = createHeaderPanel();
-        add(headerPanel, BorderLayout.NORTH);
+        add(createHeaderPanel(), BorderLayout.NORTH);
 
-        // Main Content (Split Pane)
-        JSplitPane splitPane = createMainSplitPane();
-        add(splitPane, BorderLayout.CENTER);
+        // Main Split Pane
+        add(createMainSplitPane(), BorderLayout.CENTER);
 
+        // Load data
         loadMyPatients();
+        loadAppointmentsForToday();
     }
 
     private JPanel createHeaderPanel() {
         JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(70, 130, 180)); // Doctor panel color
+        headerPanel.setBackground(new Color(70, 130, 180));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
 
         JLabel titleLabel = new JLabel("DOCTOR'S PORTAL");
@@ -75,13 +78,19 @@ public class DoctorPortalPanel extends JPanel {
         splitPane.setDividerLocation(700);
         splitPane.setBorder(BorderFactory.createEmptyBorder());
 
-        // Left Panel (Table)
         JPanel tablePanel = createTablePanel();
-        splitPane.setLeftComponent(tablePanel);
-
-        // Right Panel (Details)
+        
+        // Right panel is now a split pane itself
+        JSplitPane rightSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        rightSplitPane.setDividerLocation(350);
+        rightSplitPane.setBorder(BorderFactory.createEmptyBorder());
+        
         detailsPanel = createDetailsPanel();
-        splitPane.setRightComponent(detailsPanel);
+        rightSplitPane.setTopComponent(detailsPanel);
+        rightSplitPane.setBottomComponent(createAppointmentListPanel());
+        
+        splitPane.setLeftComponent(tablePanel);
+        splitPane.setRightComponent(rightSplitPane); // Set the new split pane
 
         return splitPane;
     }
@@ -103,10 +112,7 @@ public class DoctorPortalPanel extends JPanel {
         // Table
         String[] columnNames = {"ID", "Name", "Age", "Illness", "Severity", "Bed ID"};
         tableModel = new DefaultTableModel(columnNames, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
+            @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         patientTable = new JTable(tableModel);
         patientTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -130,17 +136,14 @@ public class DoctorPortalPanel extends JPanel {
             public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
             public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
             public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
+
             private void filter() {
                 String text = searchField.getText();
-                if (text.trim().length() == 0) {
-                    sorter.setRowFilter(null);
-                } else {
-                    sorter.setRowFilter(RowFilter.regexFilter("(?i)" + text));
-                }
+                sorter.setRowFilter(text.trim().isEmpty() ? null : RowFilter.regexFilter("(?i)" + text));
             }
         });
 
-        // Table selection listener
+        // Selection listener
         patientTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && patientTable.getSelectedRow() != -1) {
                 populateDetailsPanel();
@@ -155,9 +158,9 @@ public class DoctorPortalPanel extends JPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createTitledBorder("Patient Details"));
         panel.setBackground(Color.WHITE);
-        panel.setPreferredSize(new Dimension(350, 0)); // Width is respected
+        panel.setPreferredSize(new Dimension(350, 0));
 
-        // Initialize labels
+        // Labels
         detailNameLabel = createDetailLabel(" ", 18, Font.BOLD);
         detailAgeGenderLabel = createDetailLabel(" ", 14, Font.PLAIN);
         detailAdmittedLabel = createDetailLabel(" ", 14, Font.PLAIN);
@@ -165,7 +168,7 @@ public class DoctorPortalPanel extends JPanel {
         detailSeverityLabel = createDetailLabel(" ", 14, Font.BOLD);
         detailBedLabel = createDetailLabel(" ", 14, Font.PLAIN);
 
-        // Add labels to panel with spacing
+        // Layout
         panel.add(Box.createRigidArea(new Dimension(0, 10)));
         panel.add(createDetailSection("Name:", detailNameLabel));
         panel.add(Box.createRigidArea(new Dimension(0, 10)));
@@ -182,14 +185,12 @@ public class DoctorPortalPanel extends JPanel {
         panel.add(new JSeparator());
         panel.add(Box.createRigidArea(new Dimension(0, 10)));
         panel.add(createDetailSection("Location:", detailBedLabel));
-        
-        panel.add(Box.createVerticalGlue()); // Pushes content to the top
-        
+
+        panel.add(Box.createVerticalGlue());
         clearDetailsPanel();
         return panel;
     }
 
-    // Helper to create a detail label
     private JLabel createDetailLabel(String text, int size, int style) {
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", style, size));
@@ -197,17 +198,16 @@ public class DoctorPortalPanel extends JPanel {
         return label;
     }
 
-    // Helper to create a titled section
     private JPanel createDetailSection(String title, JLabel contentLabel) {
         JPanel section = new JPanel(new BorderLayout());
         section.setBackground(Color.WHITE);
-        section.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40)); // Constrain height
-        
+        section.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         titleLabel.setForeground(Color.GRAY);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10));
-        
+
         section.add(titleLabel, BorderLayout.NORTH);
         section.add(contentLabel, BorderLayout.CENTER);
         return section;
@@ -232,17 +232,20 @@ public class DoctorPortalPanel extends JPanel {
 
         try {
             int patientId = (int) tableModel.getValueAt(selectedRow, 0);
-            // We fetch the full patient and bed details for the panel
             Patient patient = dataAccess.getPatientById(patientId);
             Bed bed = dataAccess.getBedByPatientId(patientId);
 
             detailNameLabel.setText(patient.getName());
-            detailAgeGenderLabel.setText(patient.getAge() + " years old / " + patient.getGender());
+            detailAgeGenderLabel.setText(patient.getAge() + " years / " + patient.getGender());
             detailAdmittedLabel.setText(new SimpleDateFormat("yyyy-MM-dd").format(patient.getAdmittedDate()));
-            detailIllnessLabel.setText(patient.getIllness());
-            detailSeverityLabel.setText(patient.getDiseaseSeverity());
 
-            // Set severity color
+            // Show correct illness name
+            String illness = (patient.getOtherIllnessText() != null && !patient.getOtherIllnessText().isEmpty())
+                    ? patient.getOtherIllnessText()
+                    : patient.getIllnessName();
+            detailIllnessLabel.setText(illness);
+
+            detailSeverityLabel.setText(patient.getDiseaseSeverity());
             switch (patient.getDiseaseSeverity()) {
                 case "Severe":
                     detailSeverityLabel.setForeground(new Color(220, 53, 69));
@@ -256,36 +259,79 @@ public class DoctorPortalPanel extends JPanel {
             }
 
             if (bed != null) {
-                detailBedLabel.setText("Bed ID: " + bed.getBedId() + " (Floor " + bed.getFloor() + ", " + bed.getBedType() + ")");
+                detailBedLabel.setText("Bed " + bed.getBedId() + " (Floor " + bed.getFloor() + ", " + bed.getBedTypeName() + ")");
             } else {
-                detailBedLabel.setText("Unassigned (Outpatient)");
+                detailBedLabel.setText("Unassigned / Outpatient");
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error fetching patient details: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error fetching patient details: " + e.getMessage(),
+                    "Database Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void loadMyPatients() {
         try {
             tableModel.setRowCount(0);
+            // This line correctly uses getEmployeeId()
             List<Patient> patients = dataAccess.getPatientsByDoctorId(currentDoctor.getEmployeeId());
             for (Patient p : patients) {
                 Object[] row = {
-                    p.getPatientId(),
-                    p.getName(),
-                    p.getAge(),
-                    p.getIllness(),
-                    p.getDiseaseSeverity(),
-                    p.getBedId() == 0 ? "N/A" : p.getBedId()
+                        p.getPatientId(),
+                        p.getName(),
+                        p.getAge(),
+                        (p.getOtherIllnessText() != null && !p.getOtherIllnessText().isEmpty())
+                                ? p.getOtherIllnessText()
+                                : p.getIllnessName(),
+                        p.getDiseaseSeverity(),
+                        p.getBedId() == 0 ? "N/A" : p.getBedId()
                 };
                 tableModel.addRow(row);
             }
             patientCountLabel.setText("My Patients: " + patients.size());
             clearDetailsPanel();
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error loading patients: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error loading patients: " + e.getMessage(),
+                    "Database Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private JPanel createAppointmentListPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Today's Appointments"));
+        panel.setBackground(Color.WHITE);
+        panel.setMinimumSize(new Dimension(0, 150)); // Ensure it has some height
+
+        appointmentListModel = new DefaultListModel<>();
+        appointmentList = new JList<>(appointmentListModel);
+        appointmentList.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        
+        panel.add(new JScrollPane(appointmentList), BorderLayout.CENTER);
+        return panel;
+    }
+    
+    private void loadAppointmentsForToday() {
+        try {
+            appointmentListModel.clear();
+            
+            // [START] THE FIX
+            // Changed currentDoctor.getDoctorId() to currentDoctor.getEmployeeId()
+            // The Employee ID is the Doctor ID.
+            List<Appointment> appointments = dataAccess.getAppointmentsByDoctorAndDate(currentDoctor.getEmployeeId(), new Date());
+            // [END] THE FIX
+            
+            if (appointments.isEmpty()) {
+                appointmentListModel.addElement("No scheduled appointments for today.");
+            } else {
+                for (Appointment appt : appointments) {
+                    appointmentListModel.addElement(
+                        String.format("%s - %s", appt.getAppointmentTime(), appt.getPatientName())
+                    );
+                }
+            }
+        } catch (SQLException e) {
+            appointmentListModel.addElement("Error loading appointments.");
+            e.printStackTrace();
         }
     }
 }

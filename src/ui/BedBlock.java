@@ -43,14 +43,16 @@ public class BedBlock extends JPanel {
     public void updateBed(Bed bed) {
         // Set Bed ID and Type
         bedIdLabel.setText("Bed " + bed.getBedId());
-        bedTypeLabel.setText(bed.getBedType());
+        
+        // [FIX] Changed from getBedType() to getBedTypeName()
+        bedTypeLabel.setText(bed.getBedTypeName());
 
         // Set Patient and Color
         if ("Available".equals(bed.getStatus())) {
             patientNameLabel.setText("Available");
             setBackground(COLOR_AVAILABLE);
         } else {
-            patientNameLabel.setText(bed.getPatientName());
+            patientNameLabel.setText(bed.getPatientName() != null ? bed.getPatientName() : "Occupied");
             setBackground(COLOR_OCCUPIED);
         }
         
@@ -59,16 +61,17 @@ public class BedBlock extends JPanel {
             "<html><b>Bed ID:</b> %d<br>" +
             "<b>Floor:</b> %d<br>" +
             "<b>Ward:</b> %s<br>" +
+            // [FIX] Changed from getBedType() to getBedTypeName()
             "<b>Type:</b> %s (Rs. %.2f/day)<br>" +
             "<b>Status:</b> %s<br>" +
             "<b>Patient:</b> %s</html>",
             bed.getBedId(),
             bed.getFloor(),
             bed.getWard(),
-            bed.getBedType(),
+            bed.getBedTypeName(), // This was getBedType()
             bed.getPricePerDay(),
             bed.getStatus(),
-            "Available".equals(bed.getStatus()) ? "N/A" : bed.getPatientName() + " (ID: " + bed.getPatientId() + ")"
+            "Available".equals(bed.getStatus()) ? "N/A" : (bed.getPatientName() != null ? bed.getPatientName() : "Unknown") + " (ID: " + bed.getPatientId() + ")"
         );
         setToolTipText(toolTip);
     }

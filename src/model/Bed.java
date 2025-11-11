@@ -6,12 +6,15 @@ public class Bed {
     private String status;
     private int patientId;
     private String patientName;
-
-    // [START] NEW FIELDS
     private int floor;
-    private String bedType;
+    
+    // [START] MODIFICATIONS
+    private int bedTypeId; // Changed from String
+    
+    // Transient fields (for joins, not in 'beds' table)
+    private String bedTypeName;
     private double pricePerDay;
-    // [END] NEW FIELDS
+    // [END] MODIFICATIONS
 
     public int getBedId() { return bedId; }
     public void setBedId(int bedId) { this.bedId = bedId; }
@@ -23,13 +26,15 @@ public class Bed {
     public void setPatientId(int patientId) { this.patientId = patientId; }
     public String getPatientName() { return patientName; }
     public void setPatientName(String patientName) { this.patientName = patientName; }
-    
-    // [START] NEW GETTERS/SETTERS
     public int getFloor() { return floor; }
     public void setFloor(int floor) { this.floor = floor; }
-    public String getBedType() { return bedType; }
-    public void setBedType(String bedType) { this.bedType = bedType; }
+    
+    // [START] MODIFIED/NEW GETTERS/SETTERS
+    public int getBedTypeId() { return bedTypeId; }
+    public void setBedTypeId(int bedTypeId) { this.bedTypeId = bedTypeId; }
+    public String getBedTypeName() { return bedTypeName; }
+    public void setBedTypeName(String bedTypeName) { this.bedTypeName = bedTypeName; }
     public double getPricePerDay() { return pricePerDay; }
     public void setPricePerDay(double pricePerDay) { this.pricePerDay = pricePerDay; }
-    // [END] NEW GETTERS/SETTERS
+    // [END] MODIFIED/NEW GETTERS/SETTERS
 }
