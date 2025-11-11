@@ -3,87 +3,60 @@ package ui;
 import dal.DataAccess;
 import model.Bed;
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 
 public class BedManagementPanel extends JPanel {
     private final DataAccess dataAccess = new DataAccess();
-    private JTable bedTable;
-    private DefaultTableModel tableModel;
     private JLabel countLabel;
+    private int totalBeds = 0;
+    
+    private JPanel mainContentPanel;
+    private JScrollPane scrollPane;
 
     public BedManagementPanel() {
         setLayout(new BorderLayout(15, 15));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         setBackground(new Color(245, 245, 245));
 
-        // Header Panel
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
 
-        // Table Panel
-        JPanel tablePanel = createTablePanel();
-        add(tablePanel, BorderLayout.CENTER);
+        mainContentPanel = new JPanel();
+        mainContentPanel.setLayout(new BoxLayout(mainContentPanel, BoxLayout.Y_AXIS));
+        mainContentPanel.setBackground(Color.WHITE);
+        
+        scrollPane = new JScrollPane(mainContentPanel);
+        scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        
+        // This makes the scroll speed reasonable
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
+        add(scrollPane, BorderLayout.CENTER);
 
-        // Bottom Panel
         JPanel bottomPanel = createBottomPanel();
         add(bottomPanel, BorderLayout.SOUTH);
 
-        loadBedData();
+        refreshBedLayout();
     }
 
     private JPanel createHeaderPanel() {
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(new Color(165, 42, 42));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-        
         JLabel titleLabel = new JLabel("BED MANAGEMENT");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(Color.WHITE);
         headerPanel.add(titleLabel, BorderLayout.WEST);
-        
-        countLabel = new JLabel("Total Beds: 0");
+        countLabel = new JLabel("Total Beds: 0 (Available: 0 | Occupied: 0)");
         countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         countLabel.setForeground(Color.WHITE);
         headerPanel.add(countLabel, BorderLayout.EAST);
-        
         return headerPanel;
-    }
-
-    private JPanel createTablePanel() {
-        JPanel tablePanel = new JPanel(new BorderLayout(10, 10));
-        tablePanel.setBorder(BorderFactory.createTitledBorder("Bed Status Overview"));
-        tablePanel.setBackground(Color.WHITE);
-
-        String[] columnNames = {"Bed ID", "Ward", "Status", "Patient ID", "Patient Name"};
-        tableModel = new DefaultTableModel(columnNames, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        
-        bedTable = new JTable(tableModel);
-        bedTable.setDefaultRenderer(Object.class, new BedStatusRenderer());
-        bedTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        bedTable.setRowHeight(30);
-        bedTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        
-        // Style table header
-        JTableHeader header = bedTable.getTableHeader();
-        header.setBackground(new Color(165, 42, 42));
-        header.setForeground(Color.WHITE);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
-
-        JScrollPane scrollPane = new JScrollPane(bedTable);
-        scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
-        tablePanel.add(scrollPane, BorderLayout.CENTER);
-
-        return tablePanel;
     }
 
     private JPanel createBottomPanel() {
@@ -91,7 +64,7 @@ public class BedManagementPanel extends JPanel {
         bottomPanel.setBackground(Color.WHITE);
         
         JButton refreshButton = createStyledButton("REFRESH STATUS", new Color(165, 42, 42));
-        refreshButton.addActionListener(e -> loadBedData());
+        refreshButton.addActionListener(e -> refreshBedLayout());
         bottomPanel.add(refreshButton);
         
         return bottomPanel;
@@ -104,7 +77,6 @@ public class BedManagementPanel extends JPanel {
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
         button.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
-        
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 button.setBackground(color.darker());
@@ -113,52 +85,62 @@ public class BedManagementPanel extends JPanel {
                 button.setBackground(color);
             }
         });
-        
         return button;
     }
 
-    private void loadBedData() {
+    public void refreshBedLayout() {
+        mainContentPanel.removeAll();
+        totalBeds = 0;
+        int availableBeds = 0;
+        int occupiedBeds = 0;
+
         try {
-            tableModel.setRowCount(0);
-            List<Bed> beds = dataAccess.getAllBeds();
-            for (Bed bed : beds) {
-                Object[] row = {
-                    bed.getBedId(),
-                    bed.getWard(),
-                    bed.getStatus(),
-                    bed.getPatientId() == 0 ? "N/A" : bed.getPatientId(),
-                    bed.getPatientName() == null ? "N/A" : bed.getPatientName()
-                };
-                tableModel.addRow(row);
+            Map<Integer, List<Bed>> floorMap = dataAccess.getBedsGroupedByFloor();
+
+            for (Map.Entry<Integer, List<Bed>> entry : floorMap.entrySet()) {
+                int floorNumber = entry.getKey();
+                List<Bed> bedsOnFloor = entry.getValue();
+
+                // [START] THE FIX
+                // Use WrapLayout instead of FlowLayout
+                JPanel floorPanel = new JPanel(new WrapLayout(WrapLayout.LEFT, 10, 10));
+                // [END] THE FIX
+                
+                floorPanel.setBackground(Color.WHITE);
+                floorPanel.setBorder(BorderFactory.createTitledBorder(
+                    BorderFactory.createLineBorder(Color.LIGHT_GRAY),
+                    "Floor " + floorNumber,
+                    javax.swing.border.TitledBorder.LEFT,
+                    javax.swing.border.TitledBorder.TOP,
+                    new Font("Segoe UI", Font.BOLD, 16),
+                    Color.DARK_GRAY
+                ));
+                
+                for (Bed bed : bedsOnFloor) {
+                    floorPanel.add(new BedBlock(bed));
+                    totalBeds++;
+                    if ("Available".equals(bed.getStatus())) {
+                        availableBeds++;
+                    } else {
+                        occupiedBeds++;
+                    }
+                }
+                
+                mainContentPanel.add(floorPanel);
+                mainContentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
             }
-            countLabel.setText("Total Beds: " + beds.size());
+            
+            countLabel.setText(String.format(
+                "Total Beds: %d (Available: %d | Occupied: %d)",
+                totalBeds, availableBeds, occupiedBeds
+            ));
+
         } catch (SQLException e) {
+            e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error loading bed data: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
-    }
-}
 
-class BedStatusRenderer extends DefaultTableCellRenderer {
-    @Override
-    public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-        Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-        String status = (String) table.getModel().getValueAt(row, 2); 
-
-        if ("Occupied".equals(status)) {
-            c.setBackground(new Color(255, 182, 193)); 
-            c.setForeground(Color.BLACK);
-        } else if ("Available".equals(status)) {
-            c.setBackground(new Color(144, 238, 144));
-            c.setForeground(Color.BLACK);
-        } else {
-            c.setBackground(table.getBackground());
-            c.setForeground(table.getForeground());
-        }
-
-        if (isSelected) {
-            c.setBackground(table.getSelectionBackground());
-            c.setForeground(table.getSelectionForeground());
-        }
-        return c;
+        mainContentPanel.revalidate();
+        mainContentPanel.repaint();
     }
 }

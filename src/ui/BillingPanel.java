@@ -8,6 +8,8 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -17,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 public class BillingPanel extends JPanel {
     private final DataAccess dataAccess = new DataAccess();
 
-    private static final double BED_RATE_PER_DAY = 1500.00;
     private static final double BASE_SERVICE_CHARGE = 500.00;
     private static final double DOCTOR_CONSULTATION_FEE = 1000.00;
 
@@ -31,23 +32,19 @@ public class BillingPanel extends JPanel {
     private JTextField searchField;
     private TableRowSorter<DefaultTableModel> sorter;
     private JLabel totalRevenueLabel;
+    
+    private List<Bill> billingHistory; // Stores the list of Bill objects
 
     public BillingPanel() {
         setLayout(new BorderLayout(15, 15));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         setBackground(new Color(245, 245, 245));
 
-        // Header Panel
-        JPanel headerPanel = createHeaderPanel();
-        add(headerPanel, BorderLayout.NORTH);
-
-        // Main Content Panel
-        JSplitPane splitPane = createSplitPane();
-        add(splitPane, BorderLayout.CENTER);
+        add(createHeaderPanel(), BorderLayout.NORTH);
+        add(createSplitPane(), BorderLayout.CENTER);
 
         loadAdmittedPatients();
         loadBillingHistory();
-        setupPatientComboBox();
     }
     
     private JPanel createHeaderPanel() {
@@ -72,15 +69,8 @@ public class BillingPanel extends JPanel {
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.setDividerLocation(350);
         splitPane.setBorder(BorderFactory.createEmptyBorder());
-
-        // Top Panel for Bill Generation
-        JPanel generationPanel = createGenerationPanel();
-        splitPane.setTopComponent(generationPanel);
-
-        // Bottom Panel for History
-        JPanel historyPanel = createHistoryPanel();
-        splitPane.setBottomComponent(historyPanel);
-
+        splitPane.setTopComponent(createGenerationPanel());
+        splitPane.setBottomComponent(createHistoryPanel());
         return splitPane;
     }
 
@@ -108,6 +98,19 @@ public class BillingPanel extends JPanel {
         patientComboBox = new JComboBox<>();
         patientComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         patientComboBox.setBackground(Color.WHITE);
+        // Set the custom renderer for the ComboBox
+        patientComboBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Patient) {
+                    setText(((Patient) value).getName() + " (ID: " + ((Patient) value).getPatientId() + ")");
+                } else if (value == null) {
+                    setText("Select a patient");
+                }
+                return this;
+            }
+        });
         formPanel.add(patientComboBox, gbc);
         
         // Days Stayed
@@ -178,7 +181,7 @@ public class BillingPanel extends JPanel {
 
     private JPanel createHistoryPanel() {
         JPanel historyPanel = new JPanel(new BorderLayout(10, 10));
-        historyPanel.setBorder(BorderFactory.createTitledBorder("Billing History"));
+        historyPanel.setBorder(BorderFactory.createTitledBorder("Billing History (Double-click to view details)"));
         historyPanel.setBackground(Color.WHITE);
 
         // Search bar
@@ -215,6 +218,15 @@ public class BillingPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(historyTable);
         scrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
         historyPanel.add(scrollPane, BorderLayout.CENTER);
+
+        // Add MouseListener to the table
+        historyTable.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) { // On Double-click
+                    openBillDetails();
+                }
+            }
+        });
 
         // Search functionality
         searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
@@ -270,14 +282,17 @@ public class BillingPanel extends JPanel {
         return button;
     }
 
-    private void loadBillingHistory() {
+    // [START] CORRECTION
+    // Changed from 'private' to 'public'
+    public void loadBillingHistory() {
+    // [END] CORRECTION
         try {
             historyTableModel.setRowCount(0);
-            List<Bill> history = dataAccess.getBillingHistory();
+            billingHistory = dataAccess.getBillingHistory();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             double totalRevenue = 0;
             
-            for (Bill bill : history) {
+            for (Bill bill : billingHistory) {
                 Object[] row = {
                     bill.getBillId(),
                     bill.getPatientName(),
@@ -293,30 +308,53 @@ public class BillingPanel extends JPanel {
         }
     }
     
-    private void setupPatientComboBox() {
-        patientComboBox.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (value instanceof Patient) {
-                    setText(((Patient) value).getName() + " (ID: " + ((Patient) value).getPatientId() + ")");
-                } else if (value == null) {
-                    setText("Select a patient");
-                }
-                return this;
-            }
-        });
-    }
-
+    // This one was already public, so it's fine
     public void loadAdmittedPatients() {
-        patientComboBox.removeAllItems();
         try {
-            for (Patient p : dataAccess.getAdmittedPatients()) {
-                patientComboBox.addItem(p);
+            Object selectedItem = patientComboBox.getSelectedItem();
+            
+            patientComboBox.removeAllItems();
+            List<Patient> patients = dataAccess.getAdmittedPatients();
+            
+            if (patients.isEmpty()) {
+                patientComboBox.addItem(null);
+            } else {
+                 for (Patient p : patients) {
+                    patientComboBox.addItem(p);
+                 }
             }
+           
+            if (selectedItem instanceof Patient) {
+                 for (int i = 0; i < patientComboBox.getItemCount(); i++) {
+                     if (patientComboBox.getItemAt(i) != null && 
+                         ((Patient) patientComboBox.getItemAt(i)).getPatientId() == ((Patient) selectedItem).getPatientId()) {
+                         patientComboBox.setSelectedItem(patientComboBox.getItemAt(i));
+                         break;
+                     }
+                 }
+            }
+            
+            if (patientComboBox.getSelectedIndex() == -1 && patientComboBox.getItemCount() > 0) {
+                 patientComboBox.setSelectedIndex(0);
+            }
+
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading patients: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+    
+    private void openBillDetails() {
+        int selectedViewRow = historyTable.getSelectedRow();
+        if (selectedViewRow == -1) {
+            return;
+        }
+        
+        int modelRow = historyTable.convertRowIndexToModel(selectedViewRow);
+        
+        Bill selectedBill = billingHistory.get(modelRow);
+        
+        BillDialog dialog = new BillDialog((Frame) SwingUtilities.getWindowAncestor(this), selectedBill, dataAccess);
+        dialog.setVisible(true);
     }
 
     private void previewBill() {
@@ -327,17 +365,24 @@ public class BillingPanel extends JPanel {
         }
         try {
             Patient fullPatientDetails = dataAccess.getPatientById(selectedPatient.getPatientId());
+            if (fullPatientDetails == null || fullPatientDetails.getAdmittedDate() == null) {
+                JOptionPane.showMessageDialog(this, "Could not fetch patient's admission details.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
             long diff = new Date().getTime() - fullPatientDetails.getAdmittedDate().getTime();
             long daysStayed = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
             daysStayed = (daysStayed == 0) ? 1 : daysStayed;
 
-            double bedCharge = daysStayed * BED_RATE_PER_DAY;
+            double pricePerDay = fullPatientDetails.getPricePerDay();
+            double bedCharge = (pricePerDay > 0) ? (daysStayed * pricePerDay) : 0.00;
             
             daysStayedField.setText(String.valueOf(daysStayed));
             bedChargeField.setText(String.format("%.2f", bedCharge));
             serviceChargeField.setText(String.format("%.2f", BASE_SERVICE_CHARGE));
             doctorFeeField.setText(String.format("%.2f", DOCTOR_CONSULTATION_FEE));
             totalField.setText(String.format("%.2f", bedCharge + BASE_SERVICE_CHARGE + DOCTOR_CONSULTATION_FEE));
+            
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error fetching patient details: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -348,7 +393,13 @@ public class BillingPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Please preview the bill first.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+        
         Patient selectedPatient = (Patient) patientComboBox.getSelectedItem();
+        if (selectedPatient == null) {
+             JOptionPane.showMessageDialog(this, "No patient selected.", "Error", JOptionPane.ERROR_MESSAGE);
+             return;
+        }
+        
         Bill bill = new Bill();
         bill.setPatientId(selectedPatient.getPatientId());
         bill.setBedCharge(Double.parseDouble(bedChargeField.getText()));
@@ -358,8 +409,9 @@ public class BillingPanel extends JPanel {
         bill.setBillDate(new Date());
 
         int choice = JOptionPane.showConfirmDialog(this, 
-            "This will discharge the patient and free their bed.\nAre you sure?", 
+            "This will discharge the patient " + selectedPatient.getName() + " and free their bed.\nAre you sure?", 
             "Confirm Discharge", JOptionPane.YES_NO_OPTION);
+            
         if (choice == JOptionPane.YES_OPTION) {
             try {
                 if (dataAccess.dischargePatient(selectedPatient.getPatientId(), bill)) {
@@ -382,5 +434,8 @@ public class BillingPanel extends JPanel {
         serviceChargeField.setText("");
         doctorFeeField.setText("");
         totalField.setText("");
+        if (patientComboBox.getItemCount() > 0) {
+            patientComboBox.setSelectedIndex(0);
+        }
     }
 }

@@ -160,6 +160,8 @@ public class LoginPanel extends JPanel {
 
         // Enter key listener for login
         passwordField.addActionListener(e -> performLogin());
+        employeeNumberField.addActionListener(e -> passwordField.requestFocus()); // Press Enter to go to password
+        passwordField.addActionListener(e -> performLogin()); // Press Enter to login
 
         return loginPanel;
     }

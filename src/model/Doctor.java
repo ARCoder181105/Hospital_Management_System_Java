@@ -6,6 +6,11 @@ public class Doctor {
     private String specialization;
     private String phone;
     private String email;
+    
+    // [START] NEW FIELDS
+    private double consultationFee;
+    private String availableDays; // e.g., "Mon,Tue,Wed"
+    // [END] NEW FIELDS
 
     @Override
     public String toString() {
@@ -22,4 +27,11 @@ public class Doctor {
     public void setPhone(String phone) { this.phone = phone; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    // [START] NEW GETTERS/SETTERS
+    public double getConsultationFee() { return consultationFee; }
+    public void setConsultationFee(double consultationFee) { this.consultationFee = consultationFee; }
+    public String getAvailableDays() { return availableDays; }
+    public void setAvailableDays(String availableDays) { this.availableDays = availableDays; }
+    // [END] NEW GETTERS/SETTERS
 }
