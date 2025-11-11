@@ -9,7 +9,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.text.SimpleDateFormat;
-// import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeUnit;
 
 public class BillDialog extends JDialog {
     private Bill bill;
@@ -19,7 +19,7 @@ public class BillDialog extends JDialog {
     private JButton closeButton;
 
     public BillDialog(Frame owner, Bill bill, DataAccess dataAccess) {
-        super(owner, "Bill Details", true); // true for modal
+        super(owner, "Bill Details", true);
         this.bill = bill;
         this.dataAccess = dataAccess;
         
@@ -29,23 +29,20 @@ public class BillDialog extends JDialog {
 
         // Fetch full patient details
         try {
-            // We need full details like admission date, illness, etc.
+            // This method now fetches all details needed for the PDF
             this.patient = dataAccess.getPatientById(bill.getPatientId());
-            // The getPatientById was modified to get billing info, but we need more.
-            // Let's create a new DataAccess method for this.
-            // For now, we'll use what we have.
-            // We will add a new method `getFullPatientDetailsForBill` later if needed.
-            // For now, let's just use the name from the bill object
+            
             if (this.patient == null) {
                 // If patient was deleted, create a placeholder
                 this.patient = new Patient();
                 this.patient.setName(bill.getPatientName());
                 this.patient.setPatientId(bill.getPatientId());
+                // We don't have illness/admitted date, but that's ok
             }
             
         } catch (Exception e) {
             e.printStackTrace();
-            this.patient = new Patient();
+            this.patient = new Patient(); // Failsafe
             this.patient.setName(bill.getPatientName());
             this.patient.setPatientId(bill.getPatientId());
         }
@@ -159,22 +156,24 @@ public class BillDialog extends JDialog {
         return panel;
     }
     
+    // [START] UPDATED METHOD: downloadPdf
     private void downloadPdf() {
         try {
-            // We need more patient details for the PDF
-            // We'll update getPatientById to fetch them all
-            Patient fullPatientDetails = dataAccess.getPatientById(bill.getPatientId());
-            if (fullPatientDetails == null) {
-                // If patient was deleted, use the placeholder
-                fullPatientDetails = this.patient; 
-            }
-
-            File pdfFile = PdfGenerator.generateBillPdf(bill, fullPatientDetails);
-            JOptionPane.showMessageDialog(this, "PDF saved successfully: " + pdfFile.getAbsolutePath(), "Download Complete", JOptionPane.INFORMATION_MESSAGE);
+            // We use the patient object we fetched in the constructor
+            File pdfFile = PdfGenerator.generateBillPdf(bill, this.patient);
+            
+            // --- UPDATED MESSAGE ---
+            JOptionPane.showMessageDialog(this, 
+                "PDF saved successfully to:\n" + pdfFile.getAbsolutePath(), 
+                "Download Complete", 
+                JOptionPane.INFORMATION_MESSAGE);
+            // --- END UPDATED MESSAGE ---
+                
             PdfGenerator.openPdf(pdfFile); // Try to open the file
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error generating PDF: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+    // [END] UPDATED METHOD: downloadPdf
 }

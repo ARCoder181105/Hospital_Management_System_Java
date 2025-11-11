@@ -38,8 +38,9 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
         repaint();
     }
 
-    // This is the standard view for Admin, Nurse, Billing, etc.
-    private void showMainApplication() {
+    // [START] UPDATED METHOD
+    // Now accepts the Employee object to pass to the tab builder
+    private void showMainApplication(Employee employee) {
         if (currentPanel != null) {
             remove(currentPanel);
         }
@@ -50,7 +51,8 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
         JPanel headerPanel = createHeaderPanel();
         mainPanel.add(headerPanel, BorderLayout.NORTH);
 
-        JTabbedPane tabbedPane = createMainTabbedPane();
+        // Pass the employee to the tabbed pane creator
+        JTabbedPane tabbedPane = createMainTabbedPane(employee);
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
 
         JPanel statusBar = createStatusBar();
@@ -64,11 +66,8 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
         revalidate();
         repaint();
     }
+    // [END] UPDATED METHOD
 
-    // [START] NEW METHOD: showDoctorPortal
-    /**
-     * Shows the dedicated portal for Doctors.
-     */
     private void showDoctorPortal() {
         if (currentPanel != null) {
             remove(currentPanel);
@@ -96,10 +95,9 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
         revalidate();
         repaint();
     }
-    // [END] NEW METHOD: showDoctorPortal
 
     private JPanel createHeaderPanel() {
-        // ... (unchanged) ...
+        // ... (This method is unchanged) ...
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(new Color(70, 130, 180));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
@@ -136,21 +134,63 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
         return headerPanel;
     }
 
-    private JTabbedPane createMainTabbedPane() {
+    // [START] UPDATED METHOD
+    // This method now dynamically builds the tabs based on the employee's role
+    private JTabbedPane createMainTabbedPane(Employee employee) {
         JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
         tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 14));
 
+        String role = employee.getRole();
+
+        // Create all panels. We only add the ones the user has access to.
+        // We must create PatientPanel first, as DoctorPanel depends on it.
         PatientPanel patientPanel = new PatientPanel();
         DoctorPanel doctorPanel = new DoctorPanel(patientPanel);
         BedManagementPanel bedPanel = new BedManagementPanel();
         BillingPanel billingPanel = new BillingPanel();
 
-        tabbedPane.addTab("  Patient Management  ", patientPanel);
-        tabbedPane.addTab("  Doctor Management  ", doctorPanel);
-        tabbedPane.addTab("  Bed Management  ", bedPanel);
-        tabbedPane.addTab("  Billing & Discharge  ", billingPanel);
-
-        // Add listeners to refresh data when a tab is selected
+        // --- ROLE-BASED TAB LOGIC ---
+        switch (role) {
+            case "Administrator":
+            case "IT Admin":
+                // Admins see all tabs
+                tabbedPane.addTab("  Patient Management  ", patientPanel);
+                tabbedPane.addTab("  Doctor Management  ", doctorPanel);
+                tabbedPane.addTab("  Bed Management  ", bedPanel);
+                tabbedPane.addTab("  Billing & Discharge  ", billingPanel);
+                break;
+            
+            case "Receptionist":
+                // Reception only sees patient registration
+                tabbedPane.addTab("  Patient Management  ", patientPanel);
+                break;
+                
+            case "Nurse":
+            case "Head Nurse":
+                // Nurses see patients and beds
+                tabbedPane.addTab("  Patient Management  ", patientPanel);
+                tabbedPane.addTab("  Bed Management  ", bedPanel);
+                break;
+                
+            case "Billing Staff":
+                // Billing sees patients (to find them) and billing
+                tabbedPane.addTab("  Patient Management  ", patientPanel);
+                tabbedPane.addTab("  Billing & Discharge  ", billingPanel);
+                break;
+                
+            default:
+                // Fallback for any other roles (if any)
+                // Show a restricted view
+                JPanel lockedPanel = new JPanel(new GridBagLayout());
+                JLabel lockedLabel = new JLabel("No assigned role. Please contact an administrator.");
+                lockedLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+                lockedLabel.setForeground(Color.RED);
+                lockedPanel.add(lockedLabel);
+                tabbedPane.addTab("  Access Denied  ", lockedPanel);
+                break;
+        }
+        
+        // This listener will refresh whichever tabs are visible
         tabbedPane.addChangeListener(e -> {
             Component selectedComponent = tabbedPane.getSelectedComponent();
             if (selectedComponent instanceof PatientPanel) {
@@ -159,7 +199,6 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
             } else if (selectedComponent instanceof DoctorPanel) {
                 ((DoctorPanel) selectedComponent).loadDoctors();
             } else if (selectedComponent instanceof BedManagementPanel) {
-                // --- UPDATED METHOD CALL ---
                 ((BedManagementPanel) selectedComponent).refreshBedLayout();
             } else if (selectedComponent instanceof BillingPanel) {
                 ((BillingPanel) selectedComponent).loadAdmittedPatients();
@@ -167,16 +206,12 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
             }
         });
 
-        tabbedPane.setToolTipTextAt(0, "Manage patient registrations and information");
-        tabbedPane.setToolTipTextAt(1, "Manage doctor information and assignments");
-        tabbedPane.setToolTipTextAt(2, "View and manage bed allocations");
-        tabbedPane.setToolTipTextAt(3, "Generate bills and discharge patients");
-
         return tabbedPane;
     }
+    // [END] UPDATED METHOD
 
     private JPanel createStatusBar() {
-        // ... (unchanged) ...
+        // ... (This method is unchanged) ...
         JPanel statusPanel = new JPanel(new BorderLayout());
         statusPanel.setBorder(BorderFactory.createEtchedBorder());
         statusPanel.setBackground(new Color(240, 240, 240));
@@ -195,7 +230,8 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
         return statusPanel;
     }
 
-    // [START] UPDATED METHOD: onLoginSuccess
+    // [START] UPDATED METHOD
+    // This is the main router
     @Override
     public void onLoginSuccess(Employee employee) {
         this.currentEmployee = employee;
@@ -205,14 +241,16 @@ public class MainFrame extends JFrame implements LoginPanel.LoginListener {
         if ("Doctor".equals(role) || "Senior Doctor".equals(role)) {
             showDoctorPortal();
         } else {
-            // Default view for Admin, Nurse, Billing, Reception, etc.
-            showMainApplication();
+            // All other roles (Admin, Nurse, Billing, etc.)
+            // go to the main application, which will build
+            // the tabs based on their specific role.
+            showMainApplication(employee);
         }
     }
-    // [END] UPDATED METHOD: onLoginSuccess
+    // [END] UPDATED METHOD
 
     private void updateUserInfo() {
-        // ... (unchanged) ...
+        // ... (This method is unchanged) ...
         if (currentEmployee != null && userInfoLabel != null) {
             String userInfo = String.format("Logged in as: %s (%s) - %s",
                     currentEmployee.getName(),
