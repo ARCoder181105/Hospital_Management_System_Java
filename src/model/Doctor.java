@@ -9,6 +9,7 @@ public class Doctor {
 
     @Override
     public String toString() {
+        // This is crucial for the JComboBox to display the name correctly
         return name + " (" + specialization + ")";
     }
 
